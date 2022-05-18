@@ -2,14 +2,12 @@ using Flux
 using GraphNeuralNetworks
 #device = CUDA.functional() ? Flux.gpu : Flux.cpu;
 
-function Encoder(timewindow::Int, neqvar::Int, nhidden::Int=128)
+function Encoder(timewindow::Int, neqvar::Int, dhidden::Int=128)
     return Chain(
-        Dense(timewindow + 2 + neqvar, nhidden, swish),  #din=timewindow + 2 + n_eqvar
-        Dense(nhidden, nhidden, swish)
+        Dense(timewindow + 2 + neqvar, dhidden, swish),  #din=timewindow + 2 + n_eqvar
+        Dense(dhidden, dhidden, swish)
     )
 end
-
-
 struct ProcessorLayer <: GNNLayer
     ϕ
     ψ
@@ -17,7 +15,7 @@ end
 
 Flux.@functor ProcessorLayer
 
-function ProcessorLayer(ch::Pair{Int,Int}, dhidden::Int=128; timewindow::Int, neqvar::Int)
+function ProcessorLayer(ch::Pair{Int,Int}, dhidden::Int=128, timewindow::Int, neqvar::Int)
     din, dout = ch
     ϕ = Chain(
         Dense(2 * din + timewindow + 1 + neqvar, dhidden, swish),
@@ -30,37 +28,43 @@ function ProcessorLayer(ch::Pair{Int,Int}, dhidden::Int=128; timewindow::Int, ne
     ProcessorLayer(ϕ, ψ)
 end
 
-function (p::ProcessorLayer)(g::GNNGraph,x::AbstractMatrix,u::AbstractMatrix,pos::AbstractVector, θ::AbstractArray)
-    function message(xi, xj, ui, uj, posi, posj, θi)
-        return ϕ(cat(xi, xj, ui-uj, posi-posj, θi;dims = 1))
+function (p::ProcessorLayer)(g::GNNGraph, ndata::NamedTuple{(:f, :u, :pos, :θ),Tuple{AbstractArray{T},AbstractArray{T},AbstractArray{T},AbstractArray{T}}}) where {T}
+    function message(xi, xj, e)
+        return ϕ(cat(xi.f, xj.f, xi.u - xj.u, xi.pos - xj.pos, xi.θ, dims=1))
     end
-    ̄m = propagate(message, g, +; xi=x, xj=x, ui=u, uj = u, posi = pos, posj= pos, θ)
-    f = ψ(cat(m, θ;dims = 1))
-    x = size(x)[1] == size(f)[1] ? x + f : f
-    return norm(x)
+    m = propagate(message, g, +, xi=ndata, xj=ndata)
+    f = ψ(cat(ndata.f, m, θ; dims=1))
+    x = size(ndata.f)[1] == size(f)[1] ? ndata.f + f : f
+    return x #TODO: add Instance Norm
+
+function (p::ProcessorLayer)(g::GNNGraph)
+    GNNGraph(g, ndata=(f = p(g, g.ndata), u = g.ndata.u, pos = g.ndata.pos, θ = g.ndata.θ))
 end
 
-function (p::ProcessorLayer)(g::GNNGraph) 
-    GNNGraph(g, ndata = p(g, g.ndata.x, g.ndata.u, g.ndata.pos, g.ndata.θ))
+function Decoder(timewindow::Int)
+
 end
-
-
 struct MP_PDE_solver
     Encoder::Chain
-    Processor:: GNNChian
-    Decoder:: Chain
+    Processor::GNNChian
+    Decoder::Chain
 end
 
 Flux.@functor MP_PDE_solver
 
-function MP_PDE_solver(timewindow::Int, neqvar::Int, nhidden::Int=128)
+function MP_PDE_solver(;timewindow::Int = 25, dhidden::Int=128, nlayer::Int = 6, eqvar::NamedTuple=(;))
+    """
+    input: c_in × L × N
+    """
+    @assert timewindow ∈ (20,25,50)
+    neqvar = length(eqvar)
     MP_PDE_solver(
-        Encoder(timewindow, neqvar, nhidden),
-        Processor(Pair{nhidden, nhidden}, timewindow, neqvar),
-        Decoder(Pair{nhidden, nhidden}, timewindow, neqvar)
+        Encoder(timewindow, neqvar, dhidden),
+        Processor(dhidden=>dhidden, dhidden, timewindow, neqvar),
+        Decoder(Pair{nhidden,nhidden}, timewindow, neqvar)
     )
 end
-    
+
 function (p::MP_PDE_solver)(x)
 
 end
