@@ -60,7 +60,7 @@ function we_mixed(c, t, x, s)
 end
 
 using BenchmarkTools
-@btime we_dirichlet(2.0, (0, 2), (-1, 1), 0.1)
+@btime we_dirichlet(2.0, (0, 20), (-8, 8), 0.1)
 @btime we_dirichlet(2.0, (0, 20), (-8, 8), 1.0)
 
 @btime we_neumann(2.0, (0, 20), (-8, 8), 0.1)
