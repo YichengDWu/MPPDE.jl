@@ -1,5 +1,6 @@
 using Flux
 using GraphNeuralNetworks
+using Parameters
 #device = CUDA.functional() ? Flux.gpu : Flux.cpu;
 
 function Encoder(timewindow::Int, neqvar::Int, dhidden::Int=128)
@@ -15,7 +16,7 @@ end
 
 Flux.@functor ProcessorLayer
 
-function ProcessorLayer(ch::Pair{Int,Int}, dhidden::Int=128, timewindow::Int, neqvar::Int)
+function ProcessorLayer(ch::Pair{Int,Int}, timewindow::Int, neqvar::Int = 0, dhidden::Int=128)
     din, dout = ch
     ϕ = Chain(
         Dense(2 * din + timewindow + 1 + neqvar, dhidden, swish),
@@ -28,14 +29,20 @@ function ProcessorLayer(ch::Pair{Int,Int}, dhidden::Int=128, timewindow::Int, ne
     ProcessorLayer(ϕ, ψ)
 end
 
-function (p::ProcessorLayer)(g::GNNGraph, ndata::NamedTuple{(:f, :u, :pos, :θ),Tuple{AbstractArray{T},AbstractArray{T},AbstractArray{T},AbstractArray{T}}}) where {T}
+function (p::ProcessorLayer)(g::GNNGraph, ndata::NamedTuple{(:f, :u, :pos, :θ),NTuple{4, S}}) where {S<:AbstractMatrix}
+    @unpack ϕ, ψ = p
+    @unpack f, θ = ndata
+    
     function message(xi, xj, e)
         return ϕ(cat(xi.f, xj.f, xi.u - xj.u, xi.pos - xj.pos, xi.θ, dims=1))
     end
+
     m = propagate(message, g, +, xi=ndata, xj=ndata)
-    f = ψ(cat(ndata.f, m, θ; dims=1))
-    x = size(ndata.f)[1] == size(f)[1] ? ndata.f + f : f
+    update = ψ(cat(f, m, θ; dims=1))
+    x = size(update)[1] == size(f)[1] ? update + f : update
     return x #TODO: add Instance Norm
+end
+
 
 function (p::ProcessorLayer)(g::GNNGraph)
     GNNGraph(g, ndata=(f = p(g, g.ndata), u = g.ndata.u, pos = g.ndata.pos, θ = g.ndata.θ))
@@ -61,14 +68,14 @@ function Decoder(timewindow::Int)
     end
 end
 struct MP_PDE_solver
-    Encoder::Chain
-    Processor::GNNChian
-    Decoder::Chain
+    encoder::Chain
+    processor::GNNChian
+    decoder::Chain
 end
 
 Flux.@functor MP_PDE_solver
 
-function MP_PDE_solver(;timewindow::Int = 25, dhidden::Int=128, nlayer::Int = 6, eqvar::NamedTuple=(;))
+function MP_PDESolver(;timewindow::Int = 25, dhidden::Int=128, nlayer::Int = 6, eqvar::NamedTuple=(;))
     """
     input: Temporal × (Spatial × N)
     """
@@ -76,14 +83,20 @@ function MP_PDE_solver(;timewindow::Int = 25, dhidden::Int=128, nlayer::Int = 6,
     neqvar = length(eqvar)
     MP_PDE_solver(
         Encoder(timewindow, neqvar, dhidden),
-        Processor(dhidden=>dhidden, dhidden, timewindow, neqvar),
+        Processor(dhidden=>dhidden, timewindow, neqvar, dhidden),
         Decoder(timewindow)
     )
 end
 
-function (p::MP_PDE_solver)(x)
+function (p::MP_PDE_solver)(g,pde)
     """
-    input: GNNGraph with ndata set up
+    input:
+        GNNGraph with ndata set up
+        pde 
     """
 
+    f = encoder(cat(u,x,t,θ))
+    g.ndata.f = f
+    h = processor(g)
+    u = decoder(h)
 end
