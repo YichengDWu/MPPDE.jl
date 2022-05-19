@@ -77,10 +77,13 @@ function MP_PDE_solver(;timewindow::Int = 25, dhidden::Int=128, nlayer::Int = 6,
     MP_PDE_solver(
         Encoder(timewindow, neqvar, dhidden),
         Processor(dhidden=>dhidden, dhidden, timewindow, neqvar),
-        Decoder(Pair{nhidden,nhidden}, timewindow, neqvar)
+        Decoder(timewindow)
     )
 end
 
 function (p::MP_PDE_solver)(x)
+    """
+    input: GNNGraph with ndata set up
+    """
 
 end
