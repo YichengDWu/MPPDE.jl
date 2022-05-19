@@ -42,7 +42,23 @@ function (p::ProcessorLayer)(g::GNNGraph)
 end
 
 function Decoder(timewindow::Int)
-
+    @assert timewindow ∈ (20,25,50)
+    if timewindow == 20
+        return Chain(
+            Conv((15,),1=>8,swish;stride=4),
+            Conv((10,),8=>1,swish),
+        )
+    elseif timewindow == 25
+        return Chain(
+            Conv((16,),1=>8,swish;stride=3),
+            Conv((14,),8=>1,swish),
+        )
+    else 
+        Chain(
+            Conv((12,),1=>8,swish;stride=2),
+            Conv((10,),8=>1,swish),
+        )
+    end
 end
 struct MP_PDE_solver
     Encoder::Chain
@@ -54,7 +70,7 @@ Flux.@functor MP_PDE_solver
 
 function MP_PDE_solver(;timewindow::Int = 25, dhidden::Int=128, nlayer::Int = 6, eqvar::NamedTuple=(;))
     """
-    input: c_in × L × N
+    input: Temporal × (Spatial × N)
     """
     @assert timewindow ∈ (20,25,50)
     neqvar = length(eqvar)
