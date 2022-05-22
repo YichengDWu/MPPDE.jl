@@ -51,26 +51,3 @@ function generate_data(prob::ODEProblem, num_samples::Int = 2096)
        return sols
 end
 
-@parameters t x
-@parameters ω[1:5]
-@variables u(..) 
-
-Dt = Differential(t)
-Dx = Differential(x)
-
-eq = Dt(u(t, x)) ~  -2.0  * Dx(u(t, x))
-
-tmin,tmax = 0, 4
-xmin,xmax = 0, 1
-
-domains = [x ∈ Interval(xmin, xmax),
-           t ∈ Interval(tmin, tmax)]
-
-bcs = [u(0,x) ~ 0,
-       u(t,xmin) ~ u(t,xmax)]
-       
-@named combeq = PDESystem(eq,bcs,domains,[t,x],[u(t,x)],[ω=>ones(5)])
-@named combeq = PDESystem(eq,bcs,domains,[t,x],[u(t,x)])
-
-discretization = MOLFiniteDifference([x=>0.2], t, approx_order=2, grid_align=center_align)
-prob = discretize(combeq,discretization)
