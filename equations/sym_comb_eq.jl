@@ -3,7 +3,7 @@ using Symbolics: scalarize
 using OrdinaryDiffEq
 using Distributions
 
-function CombinedEq()
+function build_combo_eq()
        @parameters t x α β γ
        @parameters A[1:5] ω[1:5] ℓ[1:5] ϕ[1:5]
 
@@ -16,10 +16,10 @@ function CombinedEq()
        Dxx = Differential(x)^2
        Dxxx = Differential(x)^3
 
-       eq = Dt(u(t, x)) ~  -2.0 * α * u(t, x) * Dx(u(t, x)) + β * Dxx(u(t, x)) - γ * Dxxx(u(t, x)) + δ(t,x)
+       eq = Dt(u(t, x)) ~  -2. * α * u(t, x) * Dx(u(t, x)) + β * Dxx(u(t, x)) - γ * Dxxx(u(t, x)) + δ(t,x)
 
-       tmin,tmax = 0, 4
-       xmin,xmax = 0, 16
+       tmin,tmax = 0., 4.
+       xmin,xmax = 0., 16.
 
        domains = [x ∈ Interval(xmin, xmax),
                      t ∈ Interval(tmin, tmax)]
@@ -27,26 +27,43 @@ function CombinedEq()
        bcs = [u(tmin,x) ~ δ(tmin,x),
               u(t,xmin) ~ u(t,xmax)]
               
-       @named combeq = PDESystem(eq,bcs,domains,[t,x],[u(t,x)],[α=>1., β=>0, γ=>0, A=>zeros(5), ω=>zeros(5), ℓ=>zeros(5), ϕ=>zeros(5)])
+       @named combeq = PDESystem(eq,bcs,domains,[t,x],[u(t,x)], vcat([α=>1., β=>0., γ=>0.],
+                                                                      scalarize(A).=>ones(5),
+                                                                      scalarize(ω).=>ones(5),
+                                                                      scalarize(ℓ).=>ones(5), 
+                                                                      scalarize(ϕ).=>ones(5)))
        
-       discretization = MOLFiniteDifference([x=>0.2], t, approx_order=2, grid_align=center_align)
-       prob = discretize(combeq,discretization)
+       discretization = MOLFiniteDifference([x=>0.2], t, approx_order=4, grid_align=center_align)
+       prob = discretize(combeq, discretization)
 
        return prob
 end
 
-function BurgersEq(prob::ODEProblem)
-       remake(prob, p=[α=>1., β=>0, γ=>0])
+function BurgersEq(prob::ODEProblem, η::AbstractFloat = 0.)
+       @parameters α β γ
+       remake(prob, p=[α=>1., β=>η, γ=>0.])
+end
+
+function KdVEq(prob::ODEProblem)
+       @parameters α β γ
+       remake(prob, p=[α=>3., β=>0., γ=>1.])
+end
+
+function MixedEq(prob::ODEProblem, αval::AbstractFloat, βval::AbstractFloat, γval::AbstractFloat)
+       @parameters α β γ
+       remake(prob, p=[α=>αval, β=>βval, γ=>γval])
 end
 
 function generate_data(prob::ODEProblem, num_samples::Int = 2096)
+       @parameters A[1:5] ω[1:5] ℓ[1:5] ϕ[1:5]
        sols = []
-       for _ in 1:num_samples,
-              newprob = remake(prob, p = [A => rand(Uniform(-0.5, 0.5),5), 
-                                          ω => rand(Uniform(-0.4, 0.4),5),
-                                          ℓ => rand(1:3,5),
-                                          ϕ => rand(Uniform(0, 2π),5)])  # 
-              push(sols, solve(newprob, Tsit5()))
+       for i in 1:num_samples
+              newprob = remake(prob, p = vcat(scalarize(A).=> rand(Uniform(-0.5, 0.5),5),
+                                              scalarize(ω).=> rand(Uniform(-0.4, 0.4),5),
+                                              scalarize(ℓ).=> rand(1:3,5), 
+                                              scalarize(ϕ).=> rand(Uniform(0, 2π),5))) 
+              solve(newprob,Tsit5(),saveat=1)
+              #push(sols, solve(newprob, Tsit5()))
        end
        return sols
 end
