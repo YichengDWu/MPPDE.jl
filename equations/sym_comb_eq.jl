@@ -22,7 +22,7 @@ function build_combo_eq()
        xmin,xmax = 0., 16.
 
        domains = [x ∈ Interval(xmin, xmax),
-                     t ∈ Interval(tmin, tmax)]
+                  t ∈ Interval(tmin, tmax)]
 
        bcs = [u(tmin,x) ~ δ(tmin,x),
               u(t,xmin) ~ u(t,xmax)]
