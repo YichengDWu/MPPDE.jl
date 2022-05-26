@@ -37,37 +37,46 @@ function build_combo_eq(;tmin::AbstractFloat = 0.,
        dx = (xmax - xmin) / nx
        discretization = MOLFiniteDifference([x=>dx], t, approx_order=4, grid_align=center_align)
        prob = discretize(combo, discretization)
-
+       
        return combo, prob
 end
 
 uniform_sample(x::AbstractFloat) = x
 uniform_sample(x::Tuple) = rand(Uniform(x[1], x[2]),1)[1]
 
-
-function generate_data(ranges, n_samples::Int = 2096)
+function generate_data(; ranges, nsamples::Int = 2096,
+                         tmin::AbstractFloat = 0., 
+                         tmax::AbstractFloat = 4.,
+                         xmin::AbstractFloat = 0.,
+                         xmax::AbstractFloat = 16.,   
+                         nx::Int = 200, 
+                         nt::Int = 250)
        """
        ranges: ranges for α β γ
        """
-       pde, prob = build_combo_eq()
+       pde, prob = build_combo_eq(tmin=tmin, tmax=tmax, xmin=xmin, xmax=xmax, nx=nx)
+       
+       dt = (tmax-tmin) / nt
+       dx = (xmax-xmin) / nx
 
        n_var = count(i->typeof(i)<:Tuple,ranges)
        var_mask = [typeof(i)<:Tuple for i in ranges]
-       θ = Array{Float64,2}(undef, (n_var,n_samples))
+       θ = Array{Float64,2}(undef, (n_var,nsamples))
+
+       u = Array{Float64,3}(undef, (nx,nt+1, nsamples))
        
-       sols = []   
-       
-       for i in 1:n_samples     
+       for i in 1:nsamples     
               temp = collect(map(uniform_sample, ranges))
+              θ[:,i] .= temp[var_mask]
+
               newprob = remake(prob, p = vcat(temp,   
                                               rand(Uniform(-0.5, 0.5),5),
                                               rand(Uniform(-0.4, 0.4),5),
                                               rand(1:3,5), 
                                               rand(Uniform(0, 2π),5))) 
-              push!(sols, solve(newprob, Tsit5()))
-              θ[:,i] .= temp[var_mask]
-       end
-
-       return pde, θ, sols  #TODO: use Datasets.jl, add pos 
+              u[:,:,i] .= Array(solve(newprob, Tsit5(),saveat = dt))
+       end 
+       data = (pde=pde, u=u,x=collect(xmin:dx:xmax)[2:end],t = collect(tmin:dt:tmax), θ = θ)
+       return data  #TODO: use Datasets.jl
 end
 
