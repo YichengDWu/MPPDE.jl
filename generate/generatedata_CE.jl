@@ -74,7 +74,7 @@ function generate_data(; ranges, nsamples::Int = 2096,
                                               rand(Uniform(-0.4, 0.4),5),
                                               rand(1:3,5), 
                                               rand(Uniform(0, 2π),5))) 
-              u[:,:,i] .= Array(solve(newprob, Tsit5(),saveat = dt))
+              u[:,:,i] .= Array(solve(newprob, RK4(),saveat = dt))
        end 
        data = (pde=pde, u=u,x=collect(xmin:dx:xmax)[2:end],t = collect(tmin:dt:tmax), θ = θ)
        return data  #TODO: use Datasets.jl
