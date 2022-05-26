@@ -28,7 +28,7 @@ function build_combo_eq(;tmin::AbstractFloat = 0.,
        bcs = [u(tmin,x) ~ δ(tmin,x),
               u(t,xmin) ~ u(t,xmax)]
               
-       @named combeq = PDESystem(eq,bcs,domains,[t,x],[u(t,x)], vcat([α=>1., β=>0., γ=>0.],
+       @named combo = PDESystem(eq,bcs,domains,[t,x],[u(t,x)], vcat([α=>1., β=>1., γ=>1.],
                                                                       scalarize(A).=>ones(5),
                                                                       scalarize(ω).=>ones(5),
                                                                       scalarize(ℓ).=>ones(5), 
@@ -36,40 +36,38 @@ function build_combo_eq(;tmin::AbstractFloat = 0.,
        
        dx = (xmax - xmin) / nx
        discretization = MOLFiniteDifference([x=>dx], t, approx_order=4, grid_align=center_align)
-       prob = discretize(combeq, discretization)
+       prob = discretize(combo, discretization)
 
-       return prob
+       return combo, prob
 end
 
-function BurgersEq(prob::ODEProblem, η::AbstractFloat = 0.)
-       p = prob.p
-       p[1:3] .= 1., η, 0.
-       remake(prob, p=p)
-end
+uniform_sample(x::AbstractFloat) = x
+uniform_sample(x::Tuple) = rand(Uniform(x[1], x[2]),1)[1]
 
-function KdVEq(prob::ODEProblem)
-       p = prob.p
-       p[1:3] .= 3., 0., 1.
-       remake(prob, p=p)
-end
 
-function MixedEq(prob::ODEProblem, α::AbstractFloat, β::AbstractFloat, γ::AbstractFloat)
-       p = prob.p
-       p[1:3] .= α, β, γ
-       remake(prob, p=p)
-end
+function generate_data(ranges, n_samples::Int = 2096)
+       """
+       ranges: ranges for α β γ
+       """
+       pde, prob = build_combo_eq()
 
-function generate_data(prob::ODEProblem, num_samples::Int = 2096)
-       sols = []
-       for i in 1:num_samples
-              newprob = remake(prob, p = vcat(prob.p[1:3],
+       n_var = count(i->typeof(i)<:Tuple,ranges)
+       var_mask = [typeof(i)<:Tuple for i in ranges]
+       θ = Array{Float64,2}(undef, (n_var,n_samples))
+       
+       sols = []   
+       
+       for i in 1:n_samples     
+              temp = collect(map(uniform_sample, ranges))
+              newprob = remake(prob, p = vcat(temp,   
                                               rand(Uniform(-0.5, 0.5),5),
                                               rand(Uniform(-0.4, 0.4),5),
                                               rand(1:3,5), 
                                               rand(Uniform(0, 2π),5))) 
-              #solve(newprob,Tsit5(),saveat=1)
               push!(sols, solve(newprob, Tsit5()))
+              θ[:,i] .= temp[var_mask]
        end
-       return sols
+
+       return pde, θ, sols  #TODO: use Datasets.jl, add pos 
 end
 

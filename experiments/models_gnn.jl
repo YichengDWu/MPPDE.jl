@@ -68,33 +68,35 @@ function Decoder(timewindow::Int)
     end
 end
 struct MP_PDE_solver
+    pde::PDESystem  #Each solver is for a specific pde
     encoder::Chain
-    processor::GNNChian
+    processor::GNNChain  #Need to look into this
     decoder::Chain
 end
 
 Flux.@functor MP_PDE_solver
 
-function MP_PDESolver(;timewindow::Int = 25, dhidden::Int=128, nlayer::Int = 6, eqvar::NamedTuple=(;))
+function MP_PDESolver(pde::PDESystem; timewindow::Int = 25, dhidden::Int=128, nlayer::Int = 6, eqvar::NamedTuple=(;))
     """
     input: Temporal × (Spatial × N)
     """
-    @assert timewindow ∈ (20,25,50)
-    neqvar = length(eqvar)
+    neqvar = length(eqvar)  #eqvar should move to pde struct
     MP_PDE_solver(
+        pde,
         Encoder(timewindow, neqvar, dhidden),
         Processor(dhidden=>dhidden, timewindow, neqvar, dhidden),
         Decoder(timewindow)
     )
 end
 
-function (p::MP_PDE_solver)(g,pde)
+function (p::MP_PDE_solver)(g::GNNGraph, data::NamedTuple)
     """
     input:
         GNNGraph with ndata set up
-        pde 
+        data: NamedTuple{(:u, :pos, :post, :θ),NTuple{4, S}} 
+        
+    For simplicity α, β, γ are all fed into NN
     """
-
     f = encoder(cat(u,x,t,θ))
     g.ndata.f = f
     h = processor(g)
