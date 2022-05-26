@@ -93,7 +93,7 @@ function (p::MP_PDE_solver)(g::GNNGraph, data::NamedTuple)
     """
     input:
         GNNGraph with ndata set up
-        data: NamedTuple{(:u, :pos, :post, :θ),NTuple{4, S}} 
+        data: (u,x,t,theta)
         
     For simplicity α, β, γ are all fed into NN
     """
