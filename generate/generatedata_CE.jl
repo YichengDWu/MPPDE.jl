@@ -50,7 +50,8 @@ function generate_data(; ranges, nsamples::Int = 2096,
                          xmin::AbstractFloat = 0.,
                          xmax::AbstractFloat = 16.,   
                          nx::Int = 200, 
-                         nt::Int = 250) 
+                         nt::Int = 250,
+                         ::Type{T}==Float32) where T<:AbstractFloat 
        """where {T<:AbstractFloat}
        ranges: ranges for α β γ
        """
@@ -61,9 +62,9 @@ function generate_data(; ranges, nsamples::Int = 2096,
 
        n_var = count(i->typeof(i)<:Tuple,ranges)
        var_mask = [typeof(i)<:Tuple for i in ranges]
-       θ = Array{Float32,2}(undef, (n_var,nsamples))
+       θ = Array{T,2}(undef, (n_var,nsamples))
 
-       u = Array{Float32,3}(undef, (nx,nt+1, nsamples))
+       u = Array{T,3}(undef, (nx,nt+1, nsamples))
        
        for i in 1:nsamples     
               temp = collect(map(uniform_sample, ranges))
@@ -74,7 +75,7 @@ function generate_data(; ranges, nsamples::Int = 2096,
                                               rand(Uniform(-0.4, 0.4),5),
                                               rand(1:3,5), 
                                               rand(Uniform(0, 2π),5))) 
-              u[:,:,i] .= Array{Float32}(solve(newprob, Tsit5(),saveat = dt))
+              u[:,:,i] .= Array{T}(solve(newprob, Tsit5(),saveat = dt))
        end 
        data = (pde=pde, u=u,x=collect(xmin:dx:xmax)[2:end],t = collect(tmin:dt:tmax), θ = θ)
        return data  #TODO: use Datasets.jl
