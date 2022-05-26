@@ -2,6 +2,7 @@ using ModelingToolkit, MethodOfLines, DomainSets
 using Symbolics: scalarize
 using OrdinaryDiffEq
 using Distributions
+using JLD2
 
 function build_combo_eq(;tmin::AbstractFloat = 0., 
                          tmax::AbstractFloat = 4.,
@@ -44,19 +45,20 @@ end
 uniform_sample(x::AbstractFloat) = x
 uniform_sample(x::Tuple) = rand(Uniform(x[1], x[2]),1)[1]
 
-function generate_data(; ranges, nsamples::Int = 2096,
+function generate_data(::Type{T}=Float32; ranges, nsamples::Int = 2096,
                          tmin::AbstractFloat = 0., 
                          tmax::AbstractFloat = 4.,
                          xmin::AbstractFloat = 0.,
                          xmax::AbstractFloat = 16.,   
                          nx::Int = 200, 
                          nt::Int = 250,
-                         ::Type{T}==Float32) where T<:AbstractFloat 
+                         ) where T<:AbstractFloat 
        """where {T<:AbstractFloat}
        ranges: ranges for α β γ
        """
        pde, prob = build_combo_eq(tmin=tmin, tmax=tmax, xmin=xmin, xmax=xmax, nx=nx)
        
+       domain = [xmin xmax; tmin tmax]
        dt = (tmax-tmin) / nt
        dx = (xmax-xmin) / nx
 
@@ -77,7 +79,18 @@ function generate_data(; ranges, nsamples::Int = 2096,
                                               rand(Uniform(0, 2π),5))) 
               u[:,:,i] .= Array{T}(solve(newprob, Tsit5(),saveat = dt))
        end 
-       data = (pde=pde, u=u,x=collect(xmin:dx:xmax)[2:end],t = collect(tmin:dt:tmax), θ = θ)
-       return data  #TODO: use Datasets.jl
+       return pde, u, dx, dt, θ, domain
 end
+
+
+function  generate_data_E1()
+       pde, u, dx, dt, θ, domain = generate_data(ranges = (1.,0.,0.))
+       if !isdir("datasets")
+              mkdir("datasets")
+       end
+       jldsave("datasets/E1.jld2"; pde, u, dx, dt, θ, domain)
+       print("Data saved for E1")
+end
+ 
+
 
