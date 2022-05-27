@@ -83,7 +83,7 @@ function generate_data(::Type{T}=Float32; ranges, nsamples::Int=2096,
 end
 
 
-function generate_data_experiments(E::String )
+function generate_data_experiments(E::String)
        @assert E ∈ ("E1", "E2", "E3")
 
        if !isdir("datasets")
