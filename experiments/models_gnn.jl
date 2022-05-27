@@ -29,6 +29,8 @@ function ProcessorLayer(ch::Pair{Int,Int}, timewindow::Int, neqvar::Int=0, dhidd
     ProcessorLayer(ϕ, ψ)
 end
 
+@Flux.functor ProcessorLayer
+
 function (p::ProcessorLayer)(g::GNNGraph, ndata::NamedTuple{(:f, :u, :pos, :θ),NTuple{4,S}}) where {S<:AbstractMatrix}
     @unpack ϕ, ψ = p
     @unpack f, θ = ndata
@@ -48,9 +50,9 @@ function (p::ProcessorLayer)(g::GNNGraph)
     GNNGraph(g, ndata=(f=p(g, g.ndata), u=g.ndata.u, pos=g.ndata.pos, θ=g.ndata.θ))
 end
 
-function Processor(ch::Pair{Int,Int}, timewindow::Int, neqvar::Int=0, dhidden::Int=128, nlayers::Int=6)
+function Processor(ch::Pair{Int,Int}, timewindow::Int, neqvar::Int=0, dhidden::Int=128, nlayer::Int=6)
     @assert ch.first == ch.second
-    GNNChain([ProcessorLayer(ch, timewindow, neqvar, dhidden) for i in 1:nlayers]...)
+    GNNChain([ProcessorLayer(ch, timewindow, neqvar, dhidden) for i in 1:nlayer]...)
 end
 
 
@@ -73,29 +75,27 @@ function Decoder(timewindow::Int)
         )
     end
 end
-struct MP_PDE_solver
-    pde::PDESystem  #Each solver is for a specific pde
+struct MPSolver
+    #pde::PDESystem  #Each solver is for a specific pde
     encoder::Chain
     processor::GNNChain  #Need to look into this
     decoder::Chain
 end
 
-Flux.@functor MP_PDE_solver
+Flux.@functor MPSolver
 
-function MP_PDESolver(pde::PDESystem; timewindow::Int=25, dhidden::Int=128, nlayer::Int=6, eqvar::NamedTuple=(;))
+function MPSolver(;timewindow::Int=25, dhidden::Int=128, nlayer::Int=6, neqvar::Int=0)
     """
     input: Temporal × (Spatial × N)
     """
-    neqvar = length(eqvar)  #eqvar should move to pde struct
-    MP_PDE_solver(
-        pde,
+    MPSolver(
         Encoder(timewindow, neqvar, dhidden),
-        Processor(dhidden => dhidden, timewindow, neqvar, dhidden),
+        Processor(dhidden => dhidden, timewindow, neqvar, dhidden,nlayer),
         Decoder(timewindow)
     )
 end
 
-function (p::MP_PDE_solver)(data::NamedTuple)
+function (p::MPSolver)(g::GNNGraph, data::NamedTuple)
     """
     Push u[k-K:k] tp u[k:k+K]
     input:
@@ -105,7 +105,6 @@ function (p::MP_PDE_solver)(data::NamedTuple)
     @unpack u, x, t, θ = data   #TODO: add norm
     f = encoder(vcat(u, x, t, θ))
     ndata = (f=f, u=u, x=x, t=t, θ=θ)
-    g = constructgraph()
     h = processor(g, ndata).f
     u = decoder(h)
 end
