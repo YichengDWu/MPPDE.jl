@@ -39,7 +39,7 @@ function build_combo_eq(; tmin::AbstractFloat=0.0,
        discretization = MOLFiniteDifference([x => dx], t, approx_order=4, grid_align=center_align)
        prob = discretize(combo, discretization)
 
-       return combo, prob
+       return prob
 end
 
 uniform_sample(x::AbstractFloat) = x
@@ -56,7 +56,7 @@ function generate_data(::Type{T}=Float32; ranges, nsamples::Int=2096,
        """where {T<:AbstractFloat}
        ranges: ranges for α β γ
        """
-       pde, prob = build_combo_eq(tmin=tmin, tmax=tmax, xmin=xmin, xmax=xmax, nx=nx)
+       prob = build_combo_eq(tmin=tmin, tmax=tmax, xmin=xmin, xmax=xmax, nx=nx)
 
        domain = [xmin xmax; tmin tmax]
        dt = (tmax - tmin) / nt
@@ -66,7 +66,7 @@ function generate_data(::Type{T}=Float32; ranges, nsamples::Int=2096,
        var_mask = [typeof(i) <: Tuple for i in ranges]
        θ = Array{T,2}(undef, (n_var, nsamples))
 
-       u = Array{T,3}(undef, (nx, nt + 1, nsamples))
+       u = Array{T,3}(undef, (nt+1, nx, nsamples))
 
        for i in 1:nsamples
               temp = collect(map(uniform_sample, ranges))
@@ -77,18 +77,16 @@ function generate_data(::Type{T}=Float32; ranges, nsamples::Int=2096,
                      rand(Uniform(-0.4, 0.4), 5),
                      rand(1:3, 5),
                      rand(Uniform(0, 2π), 5)))
-              u[:, :, i] .= Array{T}(solve(newprob, Tsit5(), saveat=dt))
+              u[:, :, i] .= Array{T}(solve(newprob, Tsit5(), saveat=dt))'
        end
-       return pde, u, dx, dt, θ, domain
+       return u, dx, dt, θ, domain
 end
 
 
-function generate_data_experiments(E::String)
+function generate_save_data(E::String)
        @assert E ∈ ("E1", "E2", "E3")
 
-       if !isdir("datasets")
-              mkdir("datasets")
-       end
+       mkpath("datasets")
        
        if isfile("datasets/$E.jld2")
               println("Data already exists.")
@@ -98,14 +96,15 @@ function generate_data_experiments(E::String)
        println("Creating data for $E...")
        
        if E == "E1"
-              @time pde, u, dx, dt, θ, domain = generate_data(ranges=(1.0, 0.0, 0.0))
+              @time u, dx, dt, θ, domain = generate_data(ranges=(1.0, 0.0, 0.0))
        elseif E == "E2"
-              @time pde, u, dx, dt, θ, domain = generate_data(ranges=(1.0, (0.,2.), 0.0))
+              @time u, dx, dt, θ, domain = generate_data(ranges=(1.0, (0.,2.), 0.0))
        else
-              @time pde, u, dx, dt, θ, domain = generate_data(ranges=((0.,3.), (0.,4.), (0.,1.)))
+              @time u, dx, dt, θ, domain = generate_data(ranges=((0.,3.), (0.,4.), (0.,1.)))
        end
 
-       jldsave("datasets/$E.jld2"; pde, u, dx, dt, θ, domain)
+
+       jldsave("datasets/$E.jld2"; u, dx, dt, θ, domain)
        println("Data saved for $E")
        return nothing
 end

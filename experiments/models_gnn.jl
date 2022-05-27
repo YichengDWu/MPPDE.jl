@@ -30,23 +30,23 @@ end
 
 @Flux.functor ProcessorLayer
 
-function (p::ProcessorLayer)(g::GNNGraph, ndata::NamedTuple{(:f, :u, :pos, :θ),NTuple{4,S}}) where {S<:AbstractMatrix}
+function (p::ProcessorLayer)(g::GNNGraph, ndata::NamedTuple{(:f, :u, :x, :θ),NTuple{4,S}}) where {S<:AbstractMatrix}
     @unpack ϕ, ψ = p
     @unpack f, θ = ndata
 
     function message(xi, xj, e)
-        return ϕ(cat(xi.f, xj.f, xi.u - xj.u, xi.pos - xj.pos, xi.θ, dims=1))
+        return ϕ(cat(xi.f, xj.f, xi.u - xj.u, xi.x - xj.x, xi.θ, dims=1))
     end
 
     m = propagate(message, g, +, xi=ndata, xj=ndata)
     update = ψ(cat(f, m, θ; dims=1))
     newf = size(update)[1] == size(f)[1] ? update + f : update
-    return (f=newf, u=u, pos=pos, θ=θ) #TODO: add Instance Norm
+    return (f=newf, u=u, x=x, θ=θ) #TODO: add Instance Norm
 end
 
 
 function (p::ProcessorLayer)(g::GNNGraph)
-    GNNGraph(g, ndata=(f=p(g, g.ndata), u=g.ndata.u, pos=g.ndata.pos, θ=g.ndata.θ))
+    GNNGraph(g, ndata=(f=p(g, g.ndata), u=g.ndata.u, x=g.ndata.x, θ=g.ndata.θ))
 end
 
 function Processor(ch::Pair{Int,Int}, timewindow::Int, neqvar::Int=0, dhidden::Int=128, nlayer::Int=6)
@@ -93,14 +93,13 @@ function MPSolver(;timewindow::Int=25, dhidden::Int=128, nlayer::Int=6, neqvar::
     )
 end
 
-function (p::MPSolver)(g::GNNGraph, data::NamedTuple)
+function (p::MPSolver)(g::GNNGraph, ndata::AbstractMatrix)
     """
-    Push u[k-K:k] tp u[k:k+K]
+    Push u[k-K:k] to u[k:k+K]
     input:
-        data: (u,x,t,θ)   #u is already sample to be (K, Nx * batch_size)
-    
+        ndata: (u,x,t,θ)   #u is already sample to be (K, Nx * batch_size)
     """
-    @unpack u, x, t, θ = data   #TODO: add norm
+    @unpack u, x, t, θ = ndata   #TODO: add norm
     f = encoder(vcat(u, x, t, θ))
     ndata = (f=f, u=u, x=x, t=t, θ=θ)
     h = processor(g, ndata).f
