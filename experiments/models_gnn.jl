@@ -1,7 +1,6 @@
 using Flux
 using GraphNeuralNetworks
 using Parameters
-#device = CUDA.functional() ? Flux.gpu : Flux.cpu;
 
 function Encoder(timewindow::Int, neqvar::Int, dhidden::Int=128)
     return Chain(
@@ -76,7 +75,6 @@ function Decoder(timewindow::Int)
     end
 end
 struct MPSolver
-    #pde::PDESystem  #Each solver is for a specific pde
     encoder::Chain
     processor::GNNChain  #Need to look into this
     decoder::Chain
