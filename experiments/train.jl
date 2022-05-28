@@ -21,8 +21,14 @@ Base.@kwdef mutable struct Args
     epochs::Int = 10          # number of epochs
     tblogger = true      # log training with tensorboard
     savepath = "runs/"    # results path
-    K::Int = 25  #timewindow
-    N::Int = 100          # number of unrollings
+    K::Int = 25  # timewindow
+    N::Int = 1    # number of unrollings
+end
+
+function training_loop(args)
+    T = size(g.ndata.t, 1) # available time steps
+    N = rand(1:args.N)   # numer of pushforward steps for each batch
+    t = rand(args.K+1:T+1-(N+1)*K, args.batchsize)   # startingpoint for each instance in one batch
 end
 
 function train(; kws...)
@@ -47,13 +53,13 @@ function train(; kws...)
         error("Experiment not found")
     end
 
-        
+
     # load data
     train_loader, test_loader = get_data(args)
     @info "Dataset $(args.experiment): $(train_loader.nobs) train and $(test_loader.nobs) test examples"
 
     # model
-    model = MPSolver(timewindow = args.K,neqvar = neqvar) |> device
+    model = MPSolver(timewindow=args.K, neqvar=neqvar) |> device
     @info "Message Passing Solver:$(num_params(model)) parameters"
     ps = Flux.params(model)
 
@@ -61,7 +67,7 @@ function train(; kws...)
     opt = ADAMW(args.η)
 
     # loss function
-    loss(x,y) = mse(model(x),y)
+    loss(x, y) = mse(model(x), y; agg=sum)
 
     # training
     for epoch in args.epochs
