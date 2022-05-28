@@ -16,7 +16,7 @@ function we_dirichlet(c, t, x, s)
     u0 = Fun(x -> exp(-(x - s)^2), dx)
     uₜ0 = Fun(x -> -2 * c * (x - s), dx) * u0
     QR = qr([B; Dt^2 - c * c * Dx^2])
-    u = \(QR, [u0; uₜ0; 0; 0; 0]; tolerance=1E-4)
+    u = \(QR, [u0; uₜ0; 0; 0; 0]; tolerance = 1E-4)
     return u
 end
 
@@ -36,7 +36,7 @@ function we_neumann(c, t, x, s)
     u0 = Fun(x -> exp(-(x - s)^2), dx)
     uₜ0 = Fun(x -> -2 * c * (x - s), dx) * u0
     QR = qr([B; Dt^2 - c * c * Dx^2])
-    u = \(QR, [u0; uₜ0; 0; 0; 0]; tolerance=1E-4)
+    u = \(QR, [u0; uₜ0; 0; 0; 0]; tolerance = 1E-4)
     return u
 end
 
@@ -55,7 +55,7 @@ function we_mixed(c, t, x, s)
     u0 = Fun(x -> exp(-(x - s)^2), dx)
     uₜ0 = Fun(x -> -2 * c * (x - s), dx) * u0
     QR = qr([B; Dt^2 - c * c * Dx^2])
-    u = \(QR, [u0; uₜ0; 0; 0; 0]; tolerance=1E-4)
+    u = \(QR, [u0; uₜ0; 0; 0; 0]; tolerance = 1E-4)
     return u
 end
 

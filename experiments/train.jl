@@ -1,28 +1,34 @@
 using Flux
 using Flux.Data: DataLoader
 using Flux.Optimise: update!
+using Flux.Losses: mse
 using ProgressMeter: @showprogress
+using TensorBoardLogger
+using Logging: with_logger
 using CUDA
 
 include("./models_gnn.jl")
 include("../generate/generate_data_CE.jl")
 include("utilis.jl")
+
+
 Base.@kwdef mutable struct Args
     η = 1e-4             # learning rate
     experiment::String
-    timewindow::Int = 25
     batchsize::Int = 128      # batch size
     use_cuda::Bool = true      # if true use cuda (if available)
     neighbors::Int = 2
     epochs::Int = 10          # number of epochs
     tblogger = true      # log training with tensorboard
     savepath = "runs/"    # results path
+    K::Int = 25  #timewindow
+    N::Int = 100          # number of unrollings
 end
 
-function train(;kws...)
-    args = Args(;kws...)
+function train(; kws...)
+    args = Args(; kws...)
     use_cuda = args.use_cuda && CUDA.functional()
-    
+
     if use_cuda
         device = gpu
         @info "Training on GPU"
@@ -31,29 +37,40 @@ function train(;kws...)
         @info "Training on CPU"
     end
 
+    if args.experiment == "E1"
+        neqvar = 0
+    elseif args.experiment == "E2"
+        neqvar = 1
+    elseif args.experiment == "E3"
+        neqvar = 3
+    else
+        error("Experiment not found")
+    end
+
+        
     # load data
     train_loader, test_loader = get_data(args)
     @info "Dataset $(args.experiment): $(train_loader.nobs) train and $(test_loader.nobs) test examples"
 
     # model
-    model = MPSolver() |> device
+    model = MPSolver(timewindow = args.K,neqvar = neqvar) |> device
     @info "Message Passing Solver:$(num_params(model)) parameters"
-    ps = Flux.params(model)  
+    ps = Flux.params(model)
 
     # optimizer
     opt = ADAMW(args.η)
 
     # loss function
+    loss(x,y) = mse(model(x),y)
 
     # training
     for epoch in args.epochs
         @showprogress for g in train_loader
             g = g |> device
-            gs = Flux.gradient(ps) do 
-                    ŷ = model(g)
-                    loss(ŷ,y)
-                end
-            update!(opt,ps,gs)
+            gs = Flux.gradient(ps) do
+                loss(g, y)
+            end
+            update!(opt, ps, gs)
         end
     end
 end
