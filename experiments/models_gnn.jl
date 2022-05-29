@@ -116,7 +116,7 @@ function (p::MPSolver)(g::GNNGraph, ndata::NamedTuple)
     K = size(d,1)
     Δt = similar(u,K)
     Δt = cumsum(fill!(Δt,dt))
-    u = u .+ dropgrad(Δt) .* d
+    u = u[[end],:] .+ dropgrad(Δt) .* d
 end
 
 function (p::MPSolver)(g::GNNGraph)

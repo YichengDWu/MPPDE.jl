@@ -31,6 +31,7 @@ function get_data(args)
     train_loader = DataLoader(g_train, batchsize = args.batchsize, shuffle = true)
     test_loader = DataLoader(g_test, batchsize = args.batchsize, shuffle = true)
 
+    global dt = eltype(u)(dt)
     return train_loader, test_loader
 end
 
