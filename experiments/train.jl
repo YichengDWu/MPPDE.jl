@@ -118,6 +118,7 @@ function train(; kws...)
         @time report(0)
     end
     @time for epoch in 1:args.epochs
+        @info "Epoch $epoch..."
         for g in train_loader
             g, target = construct_batched_graph(g, args) .|> device
 
@@ -133,10 +134,10 @@ function train(; kws...)
                 loss(output, target)
             end
             update!(opt, ps, gs)
-            if epoch % args.infotime == 0
-                ignore() do
-                    report(epoch)
-                end
+        end
+        if epoch % args.infotime == 0
+            ignore() do
+                report(epoch)
             end
         end
 
