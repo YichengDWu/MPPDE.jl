@@ -111,7 +111,12 @@ function (p::MPSolver)(g::GNNGraph, ndata::NamedTuple)
     f = p.encoder(vcat(u, x, t, θ))
     ndata = (f = f, u = u, x = x, θ = θ)
     h = p.processor(g, ndata).f
-    u = p.decoder(unsqueeze(h,2))
+    d = p.decoder(unsqueeze(h,2))
+    d = dropdims(d;dims = 2)
+    K = size(d,1)
+    Δt = similar(u,K)
+    Δt = cumsum(fill!(Δt,dt))
+    u = u .+ dropgrad(Δt) .* d
 end
 
 function (p::MPSolver)(g::GNNGraph)

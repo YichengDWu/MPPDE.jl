@@ -1,5 +1,5 @@
 using Flux
-using Flux.Data: DataLoader
+using Flux.Data: DataLoader, batch, unbatch
 using Flux.Optimise: update!
 using Flux.Losses: mse
 using ProgressMeter: @showprogress
@@ -26,29 +26,6 @@ Base.@kwdef mutable struct Args
     N::Int = 1    # number of unrollings
 end
 
-@inline function construct_graph(g, args)
-    T = size(g.ndata.t, 1) # available time steps
-    N = rand(1:args.N)   # numer of pushforward steps for each batch
-    K = args.K
-    tid = rand(K+1:T+1-(N+1)*K, args.batchsize)   # starting point for each instance in one batch
-    
-    num_nodes = size(g.ndata.u, 2)
-    Nx = Flux.unbatch(g)[1].num_nodes
-
-    tspan = g.ndata.t[:,1]
-    u =  Matrix{eltype(g.ndata.u)}(undef,(K,num_nodes))
-    t = Matrix{eltype(g.ndata.t)}(undef,(1,num_nodes))
-    target = Matrix{eltype(g.ndata.u)}(undef,(K,num_nodes))
-    for i in 1:args.batchsize
-        u[:,(i-1)*Nx+1:i*Nx] .= g.ndata.u[tid[i]-K:tid[i]-1,(i-1)*Nx+1:i*Nx]
-        t[:,(i-1)*Nx+1:i*Nx] .= tspan[tid[i]-1]
-        target[:,(i-1)*Nx+1:i*Nx] .= g.ndata.u[tid[i]+N*K:tid[i]+(N+1)*K-1,(i-1)*Nx+1:i*Nx]
-    end
-
-    x = g.ndata.x
-    θ = g.ndata.θ
-    return GNNGraph(g,ndata=(;)), u, x, t, θ, target
-end
 
 @inline num_params(model) = sum(length, Flux.params(model)) 
 
@@ -85,35 +62,40 @@ function train(; kws...)
     # model
     model = MPSolver(timewindow=args.K, neqvar=neqvar)
     
-    model =  precision == Float32 ? f32(model) : f64(model)
+    model =  precision === Float32 ? f32(model) : f64(model)
     model = model |> device  
     @info "Message Passing Solver:$(num_params(model)) parameters"
     ps = Flux.params(model)
+
+    # loss function
+    loss(ŷ, y) = mse(ŷ, y; agg = x-> mean(sum(x, dims = 1))) # sum over tim, mean over space
 
     # optimizer
     opt = ADAMW(args.η)
 
     # training
     local training_loss
-    for epoch in args.epochs
+    for epoch in 1:args.epochs
         @showprogress for g in train_loader
             dt = g.ndata.t[2,1]-g.ndata.t[1,1]
-            dt = precision(dt)
-            g, u, x, t, θ, target = construct_graph(g, args) .|> device
+            global dt = precision(dt)
+
+            g, target = construct_batched_graph(g, args) .|> device
             
-            for n in 1:args.N
-                 u = model(g, (u=u, x=x, t=t .+ dt * args.K * (n - 1), θ=θ)) # the pushforward trick!
-                 u = dropdims(u;dims = 2)
+            @unpack u,x,t,θ = g.ndata
+
+            for n in 1:args.N 
+                u = model(g, (u=u, x=x, t=t, θ=θ)) # the pushforward trick!
+                t = t .+ dt * args.K
             end
 
             gs = gradient(ps) do
                 output = model(g, (u=dropgrad(u), x=x, t=t, θ=θ))
-                output = dropdims(output;dims=2)
-                training_loss = mse(output, target)
+                training_loss = loss(output, target)
                 return training_loss
             end
             update!(opt, ps, gs)
-            @info "Training loos at epoch $epoch:" training_loss
         end
+        @info "Training loos at epoch $epoch:" training_loss
     end
 end
