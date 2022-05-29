@@ -14,3 +14,5 @@ pkg> instantiate
 
 ## Train MP-PDE solvers for tasks E1, E2, E3
 `train("E1"),train("E2"),train("E3")`
+
+"...training for the different experiments takes between 12 and 24 hours on average on a GeForceRTX 2080Ti GPU"
