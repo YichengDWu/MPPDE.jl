@@ -7,11 +7,11 @@ function get_data(args)
     u_train, u_test = u[:, :, 1:floor(Int, end * 0.8)], u[:, :, ceil(Int, end * 0.8):end]
     θ_train, θ_test = θ[:, 1:floor(Int, end * 0.8)], θ[:, ceil(Int, end * 0.8):end]
 
-    x = collect(domain[1, 1]:dx:domain[1, 2])[2:end]
-    x = [x...;;]
+    x = collect(eltype(u), domain[1, 1]:dx:domain[1, 2])[2:end]
+    x = reshape(x,1,length(x))
     Nx = size(x, 2)
 
-    t = collect(domain[2, 1]:dt:domain[2, 2])
+    t = collect(eltype(u),domain[2, 1]:dt:domain[2, 2])
     t = repeat(t, 1, Nx)
 
     g_train = Flux.batch([

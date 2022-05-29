@@ -1,6 +1,7 @@
 using Flux
 using GraphNeuralNetworks
 using Parameters
+using Flux: unsqueeze
 
 function Encoder(timewindow::Int, neqvar::Int, dhidden::Int = 128)
     return Chain(
@@ -37,7 +38,7 @@ function (p::ProcessorLayer)(
     ndata::NamedTuple{(:f, :u, :x, :θ),NTuple{4,S}},
 ) where {S<:AbstractMatrix}
     @unpack ϕ, ψ = p
-    @unpack f, θ = ndata
+    @unpack f, u,x,θ = ndata
 
     function message(xi, xj, e)
         return ϕ(cat(xi.f, xj.f, xi.u - xj.u, xi.x - xj.x, xi.θ, dims = 1))
@@ -100,15 +101,19 @@ function MPSolver(;
     )
 end
 
-function (p::MPSolver)(g::GNNGraph, ndata::AbstractMatrix)
+function (p::MPSolver)(g::GNNGraph, ndata::NamedTuple)
     """
     Push u[k-K:k] to u[k:k+K]
     input:
         ndata: (u,x,t,θ)   #u is already sample to be (K, Nx * batch_size)
     """
     @unpack u, x, t, θ = ndata   #TODO: add norm
-    f = encoder(vcat(u, x, t, θ))
-    ndata = (f = f, u = u, x = x, t = t, θ = θ)
-    h = processor(g, ndata).f
-    u = decoder(h)
+    f = p.encoder(vcat(u, x, t, θ))
+    ndata = (f = f, u = u, x = x, θ = θ)
+    h = p.processor(g, ndata).f
+    u = p.decoder(unsqueeze(h,2))
+end
+
+function (p::MPSolver)(g::GNNGraph)
+    p(g, g.ndata)
 end
