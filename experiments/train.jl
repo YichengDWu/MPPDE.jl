@@ -17,7 +17,7 @@ Base.@kwdef mutable struct Args
     experiment::String
     batchsize::Int = 16      # batch size
     use_cuda::Bool = true      # if true use cuda (if available)
-    neighbors::Int = 6
+    neighbors::Int = 3
     epochs::Int = 20          # number of epochs
     tblogger = true      # log training with tensorboard
     savepath = "log/"    # results path
@@ -46,7 +46,7 @@ function eval_loss(loader, model, device, args)
             k = t[[s * K], :]
             target = u[s*K+1:(s+1)*K, :]
             output = model(g, (u=u_bulk, x=x, t=k, θ=θ))
-            l += loss(output, target)
+            l += loss(output, target)/steps
         end
     end
     return round(l, digits=4)
@@ -120,20 +120,24 @@ function train(; kws...)
     @time for epoch in 1:args.epochs
         @info "Epoch $epoch..."
         for g in train_loader
-            g, target = construct_batched_graph(g, args) .|> device
+            for _ in size(g.ndata.t,1)
+                g, target = sample_batched_graph(g, args,epoch) .|> device
 
-            @unpack u, x, t, θ = g.ndata
+                @unpack u, x, t, θ = g.ndata
 
-            for n in 1:args.N
-                u = model(g, (u=u, x=x, t=t, θ=θ)) # the pushforward trick!
-                t = t .+ dt * args.K
+                ignore() do 
+                    for n in 1:args.N
+                        u = model(g, (u=u, x=x, t=t, θ=θ)) # the pushforward trick!
+                        t = t .+ dt * args.K
+                    end
+                end
+
+                gs = gradient(ps) do
+                    output = model(g, (u=u, x=x, t=t, θ=θ))
+                    loss(output, target)
+                end
+                update!(opt, ps, gs)
             end
-
-            gs = gradient(ps) do
-                output = model(g, (u=dropgrad(u), x=x, t=t, θ=θ))
-                loss(output, target)
-            end
-            update!(opt, ps, gs)
         end
         if epoch % args.infotime == 0
             ignore() do
