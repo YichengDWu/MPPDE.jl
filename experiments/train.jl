@@ -1,5 +1,6 @@
 using Flux
-using Flux.Data: DataLoader, batch, unbatch
+using Flux.Data: DataLoader
+using Flux: batch, unbatch
 using Flux.Optimise: update!
 using Flux.Losses: mse
 using TensorBoardLogger
@@ -121,12 +122,14 @@ function train(; kws...)
         @info "Epoch $epoch..."
         for g in train_loader
             for _ in size(g.ndata.t,1)
-                g, target = sample_batched_graph(g, args,epoch) .|> device
+                Nmax =  epoch ≤ args.N ? epoch -1 : args.N
+                N = rand(0:Nmax)   # numer of pushforward steps for each batch
+                g, target= sample_batched_graph(g, args, N) .|> device
 
                 @unpack u, x, t, θ = g.ndata
-
+                
                 ignore() do 
-                    for n in 1:args.N
+                    for n in 1:N
                         u = model(g, (u=u, x=x, t=t, θ=θ)) # the pushforward trick!
                         t = t .+ dt * args.K
                     end
@@ -141,7 +144,7 @@ function train(; kws...)
         end
         if epoch % args.infotime == 0
             ignore() do
-                report(epoch)
+                @time report(epoch)
             end
         end
 

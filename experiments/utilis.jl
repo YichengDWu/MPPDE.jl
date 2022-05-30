@@ -54,10 +54,8 @@ function sample_single_graph(g::GNNGraph,k::Int,K::Int,N::Int)
 end
 
 
-function sample_batched_graph(g, args,epoch)
+function sample_batched_graph(g, args, N)
     T = size(g.ndata.t, 1) # available time steps
-    Nmax =  epoch ≤ args.N+1 ? epoch : args.N
-    N = rand(0:Nmax)   # numer of pushforward steps for each batch
     K = args.K
 
     graphs = Vector{GNNGraph}()
@@ -67,5 +65,5 @@ function sample_batched_graph(g, args,epoch)
         push!(graphs, g_sampled)
         target = hcat(target, target_sampled)
     end
-    return batch(graphs), target 
+    return batch(graphs), target, N 
 end
