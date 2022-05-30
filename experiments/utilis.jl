@@ -4,6 +4,12 @@ function get_data(args)
 
     @unpack domain, u, dx, dt, θ = load("datasets/$e.jld2")
 
+    if e == "E2"
+        θ = θ .* 5
+    elseif e == "E3"
+        θ = θ./[3,eltype(θ)(0.4),1]
+    end
+
     u_train, u_test = u[:, :, 1:floor(Int, end * 0.8)], u[:, :, ceil(Int, end * 0.8):end]
     θ_train, θ_test = θ[:, 1:floor(Int, end * 0.8)], θ[:, ceil(Int, end * 0.8):end]
 
@@ -13,6 +19,10 @@ function get_data(args)
 
     t = collect(eltype(u),domain[2, 1]:dt:domain[2, 2])
     t = repeat(t, 1, Nx)
+
+    x = x ./ (domain[1, 2] - domain[1, 1]) #normalisation
+    t = t ./ (domain[2, 2] - domain[2, 1])
+    dt = dt / (domain[2, 2] - domain[2, 1])
 
     g_train = batch([
         GNNGraph(
@@ -35,7 +45,7 @@ function get_data(args)
     return train_loader, test_loader
 end
 
-function construct_single_graph(g::GNNGraph,k::Int,K::Int,N::Int)
+function sample_single_graph(g::GNNGraph,k::Int,K::Int,N::Int)
     @unpack u,x,t,θ = g.ndata
     @views new_u = u[k-K:k-1,:]
     @views t = t[[k-1],:]
@@ -44,15 +54,16 @@ function construct_single_graph(g::GNNGraph,k::Int,K::Int,N::Int)
 end
 
 
-@inline function construct_batched_graph(g, args)
+function sample_batched_graph(g, args,epoch)
     T = size(g.ndata.t, 1) # available time steps
-    N = rand(1:args.N)   # numer of pushforward steps for each batch
+    Nmax =  epoch ≤ args.N+1 ? epoch : args.N
+    N = rand(0:Nmax)   # numer of pushforward steps for each batch
     K = args.K
 
     graphs = Vector{GNNGraph}()
     target = similar(g.ndata.u,K, 0)
     for g in unbatch(g)
-        g_sampled, target_sampled = construct_single_graph(g, rand(K+1:T+1-(N+1)*K), K, N)
+        g_sampled, target_sampled = sample_single_graph(g, rand(K+1:T+1-(N+1)*K), K, N)
         push!(graphs, g_sampled)
         target = hcat(target, target_sampled)
     end
