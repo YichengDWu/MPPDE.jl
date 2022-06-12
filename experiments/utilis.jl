@@ -4,9 +4,9 @@ function get_data(args)
 
     @unpack domain, u, dx, dt, θ = load("datasets/$e.jld2")
 
-    if e == "E2"
+    if e == :E2
         θ = θ .* 5
-    elseif e == "E3"
+    elseif e == :E3
         θ = θ./[3,eltype(θ)(0.4),1]
     end
 

@@ -16,7 +16,7 @@ include("utilis.jl")
 
 Base.@kwdef mutable struct Args
     η = 1e-4             # learning rate
-    experiment::String
+    experiment::Symbol
     batchsize::Int = 16      # batch size
     use_cuda::Bool = true      # if true use cuda (if available)
     neighbors::Int = 6
@@ -94,11 +94,11 @@ function train(; kws...)
         @info "Training on CPU"
     end
 
-    if args.experiment == "E1"
+    if args.experiment == :E1
         neqvar = 0
-    elseif args.experiment == "E2"
+    elseif args.experiment == :E2
         neqvar = 1
-    elseif args.experiment == "E3"
+    elseif args.experiment == :E3
         neqvar = 3
     else
         error("Experiment not found")
