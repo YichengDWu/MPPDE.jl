@@ -7,6 +7,7 @@ using TensorBoardLogger
 using Logging: with_logger
 using CUDA
 using Zygote: dropgrad, ignore
+using Plots
 
 include("./models_gnn.jl")
 include("../generate/generate_data_CE.jl")
@@ -18,7 +19,7 @@ Base.@kwdef mutable struct Args
     experiment::String
     batchsize::Int = 16      # batch size
     use_cuda::Bool = true      # if true use cuda (if available)
-    neighbors::Int = 3
+    neighbors::Int = 6
     epochs::Int = 20          # number of epochs
     tblogger = true      # log training with tensorboard
     savepath = "log/"    # results path
@@ -52,6 +53,34 @@ function eval_loss(loader, model, device, args)
     end
     return round(l, digits=4)
 end
+
+function draw_groudtruth(g::GNNGraph)
+    u = g.ndata.u' |> cpu
+    x = [g.ndata.x...] |> cpu
+    p = plot(x,u,title = "Ground truth")
+    return p
+end
+
+function draw_prediction(g::GNNGraph,model,args)
+    g = g |> gpu #TODO:device
+    @unpack u, x, t, θ = g.ndata 
+    T = size(t, 1)
+    K = args.K
+    steps = T ÷ K - 1
+    output = zero(u)
+    output[1:K,:] = u[1:K,:]
+    for s in 1:steps
+        u_bulk = u[(s-1)*K+1:s*K, :]
+        k = t[[s * K], :]
+        output[s*K+1:(s+1)*K, :] = model(g, (u=u_bulk, x=x, t=k, θ=θ))
+    end
+    pred = output' |> cpu
+    x = [x...] |> cpu
+    p = plot(x,pred,title = "Prediction")
+    return p
+end
+
+
 
 function train(; kws...)
     args = Args(; kws...)
@@ -105,11 +134,13 @@ function train(; kws...)
         train_loss = eval_loss(train_loader, model, device, args)
         test_loss = eval_loss(test_loader, model, device, args)
         println("Epoch: $epoch   Train: $(train_loss)   Test: $(test_loss)")
+        g_train = unbatch(first(train_loader))[2]
+        g_test = unbatch(first(test_loader))[2]
         if args.tblogger
             set_step!(tblogger, epoch)
             with_logger(tblogger) do
-                @info "train" loss = train_loss
-                @info "test" loss = test_loss
+                @info "train" loss = train_loss groundtruth = draw_groudtruth(g_train) prediction = draw_prediction(g_train,model,args)
+                @info "test" loss = test_loss groundtruth = draw_groudtruth(g_test) prediction = draw_prediction(g_test,model,args)
             end
         end
     end

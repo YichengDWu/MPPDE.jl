@@ -106,30 +106,47 @@ function generate_data(
     return u, dx, dt, θ, domain
 end
 
-
-function generate_save_data(E::String)
-    @assert E ∈ ("E1", "E2", "E3")
-
+function generate_save_data(::Val{:E1})
     mkpath("datasets")
 
-    if isfile("datasets/$E.jld2")
+    if isfile("datasets/E1.jld2")
         println("Data already exists.")
         return
     end
-
-    println("Creating data for $E...")
-
-    if E == "E1"
-        @time u, dx, dt, θ, domain = generate_data(ranges = (1.0, 0.0, 0.0))
-    elseif E == "E2"
-        @time u, dx, dt, θ, domain = generate_data(ranges = (1.0, (0.0, 2.0), 0.0))
-    else
-        @time u, dx, dt, θ, domain =
-            generate_data(ranges = ((0.0, 3.0), (0.0, 4.0), (0.0, 1.0)))
-    end
-
-
-    jldsave("datasets/$E.jld2"; u, dx, dt, θ, domain)
-    println("Data saved for $E")
+    @time u, dx, dt, θ, domain = generate_data(ranges = (1.0, 0.0, 0.0))
+    jldsave("datasets/E1.jld2"; u, dx, dt, θ, domain)
+    println("Data saved for E1")
     return nothing
+end
+
+function generate_save_data(::Val{:E2})
+    mkpath("datasets")
+
+    if isfile("datasets/E2.jld2")
+        println("Data already exists.")
+        return
+    end
+    @time u, dx, dt, θ, domain = generate_data(ranges = (1.0, (0.0, 2.0), 0.0))
+    jldsave("datasets/E2.jld2"; u, dx, dt, θ, domain)
+    println("Data saved for E2")
+    return nothing
+end
+
+
+function generate_save_data(::Val{:E3})
+    mkpath("datasets")
+
+    if isfile("datasets/E3.jld2")
+        println("Data already exists.")
+        return
+    end
+    @time u, dx, dt, θ, domain = generate_data(ranges = ((0.0, 3.0), (0.0, 4.0), (0.0, 1.0)))
+    jldsave("datasets/E3.jld2"; u, dx, dt, θ, domain)
+    println("Data saved for E3")
+    return nothing
+end
+
+function generate_save_data(e::Symbol)
+    @assert e ∈ (:E1, :E2, :E3)
+    generate_save_data(Val(e))
 end
