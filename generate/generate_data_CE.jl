@@ -65,10 +65,10 @@ function generate_data(
     ::Type{T} = Float32;
     ranges,
     nsamples::Int = 2096,
-    tmin::AbstractFloat = 0.0,
-    tmax::AbstractFloat = 4.0,
-    xmin::AbstractFloat = 0.0,
-    xmax::AbstractFloat = 16.0,
+    tmin::AbstractFloat = 0.0f0,
+    tmax::AbstractFloat = 4.0f0,
+    xmin::AbstractFloat = 0.0f0,
+    xmax::AbstractFloat = 16.0f0,
     nx::Int = 200,
     nt::Int = 250,
 ) where {T<:AbstractFloat}
@@ -78,6 +78,7 @@ function generate_data(
     prob = build_combo_eq(tmin = tmin, tmax = tmax, xmin = xmin, xmax = xmax, nx = nx)
 
     domain = [xmin xmax; tmin tmax]
+    domain = T.(domain)
     dt = (tmax - tmin) / nt
     dx = (xmax - xmin) / nx
 
