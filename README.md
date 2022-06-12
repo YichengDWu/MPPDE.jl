@@ -2,6 +2,8 @@
 
 This is an implementation of the [message passing solver](https://github.com/brandstetter-johannes/MP-Neural-PDE-Solvers) in Julia
 
+Note that training E1 would throw an error, it will be fixed from upstream latter
+
 ## Set up environment
 `cd` to the project directory and call
 ```
@@ -16,3 +18,4 @@ pkg> instantiate
 `train(experiment=:E1),train(experiment=:E2),train(experiment=:E3)`
 
 "...training for the different experiments takes between 12 and 24 hours on average on a GeForceRTX 2080Ti GPU"
+
