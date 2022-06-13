@@ -4,6 +4,8 @@ This is an implementation of the [message passing solver](https://github.com/bra
 
 Note that training E1 would throw an error, it will be fixed from upstream latter
 
+Loss is not decreasing much, I will debug it latter.
+
 ## Set up environment
 `cd` to the project directory and call
 ```
