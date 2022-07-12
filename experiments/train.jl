@@ -7,6 +7,8 @@ using CUDA
 using Zygote, ChainRules
 using Plots
 
+CUDA.allowscalar(false)
+
 include("./models_gnn.jl")
 include("../generate/generate_data_CE.jl")
 include("utilis.jl")
@@ -112,7 +114,7 @@ function train(; kws...)
     ps, st = Lux.setup(Random.default_rng(), model) |> device
     # optimizer
     opt = AdamW(args.η)
-    opt_st = Optimisers.setup(opt, ps)
+    st_opt = Optimisers.setup(opt, ps)
 
     # logging
     if args.tblogger
@@ -149,8 +151,11 @@ function train(; kws...)
                 Nmax =  epoch ≤ args.N ? epoch - 1 : args.N
                 N = rand(0:Nmax)   # numer of pushforward steps for each batch
                 u, t, g, target = batched_sample(u, t, g, args.K, N) |> device
+                x = reshape(x, size(x,1), size(x,2) * size(x,3)) |> device
+                θ = reshape(θ, size(θ,1), size(θ,2) * size(θ,3)) |> device
 
                 st = updategraph(st, g)
+
                 ChainRules.@ignore_derivatives for _ in 1:N
                     u, st = model((u = u, x = x, t = t, θ = θ), ps, st) # the pushforward trick!
                     t = t .+ dt * args.K
@@ -158,7 +163,7 @@ function train(; kws...)
 
                 (l,), back = Zygote.pullback(p -> loss_func((u = u, x = x, t = t, θ = θ), target, model, p, st), ps)
                 gs = back(one(l))[1]
-                ps = Optimisers.update(opt_st, ps, gs)
+                st_opt, ps = Optimisers.update(st_opt, ps, gs)
                 @info "epoch $epoch | loss $l"
             end
         end
