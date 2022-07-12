@@ -1,58 +1,30 @@
-using Flux
-using GraphNeuralNetworks
-using Parameters
-using Flux: unsqueeze
+using Lux, NNlib
+using NeuralGraphPDE
+#import Flux: unsqueeze
 
-function Encoder(timewindow::Int, neqvar::Int, dhidden::Int = 128)
+function Encoder(timewindow::Int, neqvar::Int, dhidden::Int = 128, act = swish)
     return Chain(
-        Dense(timewindow + 2 + neqvar, dhidden, swish),  #din=timewindow + 2 + n_eqvar
-        Dense(dhidden, dhidden, swish),
+        Dense(timewindow + 2 + neqvar, dhidden, act),  #din=timewindow + 2 + n_eqvar
+        Dense(dhidden, dhidden, act),
     )
 end
-struct ProcessorLayer <: GNNLayer
-    ϕ::Any
-    ψ::Any
-end
 
-Flux.@functor ProcessorLayer
-
-function ProcessorLayer(
-    ch::Pair{Int,Int},
-    timewindow::Int,
-    neqvar::Int = 0,
-    dhidden::Int = 128,
-)
+function ProcessorLayer(ch::Pair{Int,Int},
+                        timewindow::Int,
+                        neqvar::Int = 0,
+                        dhidden::Int = 128,
+                        act = swish)
     din, dout = ch
     ϕ = Chain(
-        Dense(2 * din + timewindow + 1 + neqvar, dhidden, swish),
-        Dense(dhidden, dhidden, swish),
+        Dense(2 * din + timewindow + 1 + neqvar, dhidden, act),
+        Dense(dhidden, dhidden, act),
     )
-    ψ = Chain(Dense(din + dhidden + neqvar, dhidden, swish), Dense(dhidden, dout, swish))
-    ProcessorLayer(ϕ, ψ)
+    ψ = Chain(Dense(din + dhidden + neqvar, dhidden, act), Dense(dhidden, dout, act))
+    MPPDEConv(ϕ, ψ)
 end
 
-Flux.@functor ProcessorLayer
-
-function (p::ProcessorLayer)(
-    g::GNNGraph,
-    ndata::NamedTuple{(:f, :u, :x, :θ),NTuple{4,S}},
-) where {S<:AbstractMatrix}
-    @unpack ϕ, ψ = p
-    @unpack f, u,x,θ = ndata
-
-    function message(xi, xj, e)
-        return ϕ(cat(xi.f, xj.f, xi.u - xj.u, xi.x - xj.x, xi.θ, dims = 1))
-    end
-
-    m = propagate(message, g, +, xi = ndata, xj = ndata)
-    update = ψ(cat(f, m, θ; dims = 1))
-    newf = size(update)[1] == size(f)[1] ? update + f : update
-    return (f = newf, u = u, x = x, θ = θ) #TODO: add Instance Norm
-end
-
-
-function (p::ProcessorLayer)(g::GNNGraph)
-    GNNGraph(g, ndata = (f = p(g, g.ndata), u = g.ndata.u, x = g.ndata.x, θ = g.ndata.θ))
+function ProcessorLayer(in_chs::Int, out_chs::Int, timewindow::Int, neqvar::Int = 0, dhidden::Int = 128, act = swish)
+    ProcessorLayer(in_chs => out_chs, timewindow, neqvar, dhidden, act)
 end
 
 function Processor(
@@ -62,63 +34,60 @@ function Processor(
     dhidden::Int = 128,
     nlayer::Int = 6,
 )
-    @assert ch.first == ch.second
-    GNNChain([ProcessorLayer(ch, timewindow, neqvar, dhidden) for i = 1:nlayer]...)
+    @assert ch.first == ch.second # current limitation
+    Chain([SkipConnection(ProcessorLayer(ch, timewindow, neqvar, dhidden),+) for i = 1:nlayer])
 end
 
 
-function Decoder(timewindow::Int)
+function Decoder(timewindow::Int, act = swish)
     @assert timewindow ∈ (20, 25, 50)
     if timewindow == 20
-        return Chain(Conv((15,), 1 => 8, swish; stride = 4), Conv((10,), 8 => 1, swish))
+        return Chain(Conv((15,), 1 => 8, act; stride = 4), Conv((10,), 8 => 1, act))
     elseif timewindow == 25
-        return Chain(Conv((16,), 1 => 8, swish; stride = 3), Conv((14,), 8 => 1, swish))
+        return Chain(Conv((16,), 1 => 8, act; stride = 3), Conv((14,), 8 => 1, act))
     else
-        Chain(Conv((12,), 1 => 8, swish; stride = 2), Conv((10,), 8 => 1, swish))
+        Chain(Conv((12,), 1 => 8, act; stride = 2), Conv((10,), 8 => 1, act))
     end
 end
-struct MPSolver
-    encoder::Chain
-    processor::GNNChain  #Need to look into this
-    decoder::Chain
+struct MPSolver{E, P, D, T<: AbstractFloat} <:
+        Lux.AbstractExplicitContainerLayer{(:encoder, :processor, :decoder)}
+    encoder::E
+    processor::P
+    decoder::D
+    Δt::Vector{T}
 end
 
-Flux.@functor MPSolver
-
+"""
+input: Temporal × (Spatial × N)
+"""
 function MPSolver(;
+    dt::AbstractFloat,
     timewindow::Int = 25,
     dhidden::Int = 128,
     nlayer::Int = 6,
-    neqvar::Int = 0,
+    neqvar::Int = 0
 )
-    """
-    input: Temporal × (Spatial × N)
-    """
+    Δt = cumsum(ones(typeof(dt), timewindow) .* dt)
     MPSolver(
         Encoder(timewindow, neqvar, dhidden),
         Processor(dhidden => dhidden, timewindow, neqvar, dhidden, nlayer),
         Decoder(timewindow),
+        Δt
     )
 end
 
-function (p::MPSolver)(g::GNNGraph, ndata::NamedTuple)
+function (l::MPSolver)(ndata::NamedTuple, ps::NamedTuple, st::NamedTuple)
     """
     Push u[k-K:k] to u[k:k+K]
     input:
-        ndata: (u,x,t,θ)   #u is already sample to be (K, Nx * batch_size)
+        ndata: (u,x,t,θ)   # u is already sample to be (K, Nx * batch_size)
     """
-    @unpack u, x, t, θ = ndata   #TODO: add norm
-    f = p.encoder(vcat(u, x, t, θ))
-    ndata = (f = f, u = u, x = x, θ = θ)
-    h = p.processor(g, ndata).f
-    d = p.decoder(unsqueeze(h,2))
+    input = reduce(vcat, values(ndata)) #TODO: add norm
+    f, st_encoder = l.encoder(input, ps.encoder, st.encoder)
+    h, st_processor = l.processor(f, ps.processor, st.processor)
+    d, st_decoder = l.decoder(unsqueeze(h,2), ps.decoder, st.decoder)
     d = dropdims(d;dims = 2)
-    K = size(d,1)
-    Δt = similar(u,K)
-    Δt = cumsum(fill!(Δt,dt))
-    u = u[[end],:] .+ dropgrad(Δt) .* d
-end
-
-function (p::MPSolver)(g::GNNGraph)
-    p(g, g.ndata)
+    u = ndata.u[[end],:] .+ l.Δt .* d
+    st = merge(st,(encoder = st_encoder, processro = st_processor, decoder = st_decoder))
+    return u, st
 end

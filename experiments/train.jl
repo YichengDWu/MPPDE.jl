@@ -1,12 +1,11 @@
-using Flux
-using Flux.Data: DataLoader
-using Flux: batch, unbatch
-using Flux.Optimise: update!
+using Lux, Random
+using GraphNeuralNetworks
+using Optimisers
 using Flux.Losses: mse
 using TensorBoardLogger
 using Logging: with_logger
 using CUDA
-using Zygote: dropgrad, ignore
+using Zygote
 using Plots
 
 include("./models_gnn.jl")
@@ -28,13 +27,10 @@ Base.@kwdef mutable struct Args
     infotime::Int = 4
 end
 
-
-@inline num_params(model) = sum(length, Flux.params(model))
-
 # loss function
 loss(ŷ, y) = sqrt(mse(ŷ, y)) # sum over tim, mean over space
 
-function eval_loss(loader, model, device, args)
+function eval_loss(loader, model, ps, st, device, args)
     l = 0.0f0
     K = args.K
     for g in loader
@@ -63,7 +59,7 @@ end
 
 function draw_prediction(g::GNNGraph,model,args)
     g = g |> gpu #TODO:device
-    @unpack u, x, t, θ = g.ndata 
+    @unpack u, x, t, θ = g.ndata
     T = size(t, 1)
     K = args.K
     steps = T ÷ K - 1
@@ -106,22 +102,20 @@ function train(; kws...)
 
 
     # load data
-    train_loader, test_loader = get_data(args)
+    train_loader, test_loader, dt = get_data(args)
     @info "Dataset $(args.experiment): $(train_loader.nobs) train and $(test_loader.nobs) test examples"
     precision = eltype(eltype(train_loader.data.ndata))
 
     @info "Train with precision $precision"
 
     # model
-    model = MPSolver(timewindow=args.K, neqvar=neqvar)
+    model = MPSolver(dt = dt, timewindow=args.K, neqvar=neqvar)
 
-    model = precision === Float32 ? f32(model) : f64(model)
-    model = model |> device
-    @info "Message Passing Solver:$(num_params(model)) parameters"
-    ps = Flux.params(model)
-
+    @info "Message Passing Solver:$(Lux.parameterlength(model)) parameters"
+    ps, st = Lux.setup(Random.default_rng(), model) |> device
     # optimizer
-    opt = ADAMW(args.η)
+    opt = AdamW(args.η)
+    st_opt = Optimisers.setup(st, ps)
 
     # logging
     if args.tblogger
@@ -146,9 +140,8 @@ function train(; kws...)
     end
 
     # training
-    ignore() do
-        @time report(0)
-    end
+    @time report(0)
+
     @time for epoch in 1:args.epochs
         @info "Epoch $epoch..."
         for g in train_loader
@@ -158,8 +151,8 @@ function train(; kws...)
                 g, target= sample_batched_graph(g, args, N) .|> device
 
                 @unpack u, x, t, θ = g.ndata
-                
-                ignore() do 
+
+                ignore() do
                     for n in 1:N
                         u = model(g, (u=u, x=x, t=t, θ=θ)) # the pushforward trick!
                         t = t .+ dt * args.K
