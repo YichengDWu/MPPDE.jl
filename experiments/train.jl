@@ -1,11 +1,10 @@
 using Lux, Random
 using GraphNeuralNetworks
 using Optimisers
-using Flux.Losses: mse
 using TensorBoardLogger
 using Logging: with_logger
 using CUDA
-using Zygote
+using Zygote, ChainRules
 using Plots
 
 include("./models_gnn.jl")
@@ -27,8 +26,9 @@ Base.@kwdef mutable struct Args
     infotime::Int = 4
 end
 
-# loss function
-loss(ŷ, y) = sqrt(mse(ŷ, y)) # sum over tim, mean over space
+function mse(ŷ, y; agg = mean)
+    agg(abs2.(ŷ .- y))
+end
 
 function eval_loss(loader, model, ps, st, device, args)
     l = 0.0f0
@@ -43,7 +43,7 @@ function eval_loss(loader, model, ps, st, device, args)
             u_bulk = u[(s-1)*K+1:s*K, :]
             k = t[[s * K], :]
             target = u[s*K+1:(s+1)*K, :]
-            output = model(g, (u=u_bulk, x=x, t=k, θ=θ))
+            output = model((u=u_bulk, x=x, t=k, θ=θ), ps, st)
             l += loss(output, target)/steps
         end
     end
@@ -103,19 +103,16 @@ function train(; kws...)
 
     # load data
     train_loader, test_loader, dt = get_data(args)
-    @info "Dataset $(args.experiment): $(train_loader.nobs) train and $(test_loader.nobs) test examples"
-    precision = eltype(eltype(train_loader.data.ndata))
-
-    @info "Train with precision $precision"
+    @info "Dataset $(args.experiment): $(numobs(train_loader)) train and $(numobs(test_loader)) test examples"
 
     # model
     model = MPSolver(dt = dt, timewindow=args.K, neqvar=neqvar)
 
-    @info "Message Passing Solver:$(Lux.parameterlength(model)) parameters"
+    display(model)
     ps, st = Lux.setup(Random.default_rng(), model) |> device
     # optimizer
     opt = AdamW(args.η)
-    st_opt = Optimisers.setup(st, ps)
+    opt_st = Optimisers.setup(opt, ps)
 
     # logging
     if args.tblogger
@@ -140,37 +137,34 @@ function train(; kws...)
     end
 
     # training
-    @time report(0)
+    #@time report(0)
+    function loss_func(x, y, model, ps, st)
+        return mse(model(x, ps, st)[1], y)
+    end
 
     @time for epoch in 1:args.epochs
         @info "Epoch $epoch..."
-        for g in train_loader
-            for _ in size(g.ndata.t,1)
-                Nmax =  epoch ≤ args.N ? epoch -1 : args.N
+        for _ in 1:250  # this in expectation has every possible starting point/sample combination of the training data
+            for (u, x, t, θ, g) in train_loader
+                Nmax =  epoch ≤ args.N ? epoch - 1 : args.N
                 N = rand(0:Nmax)   # numer of pushforward steps for each batch
-                g, target= sample_batched_graph(g, args, N) .|> device
+                u, t, g, target = batched_sample(u, t, g, args.K, N) |> device
 
-                @unpack u, x, t, θ = g.ndata
-
-                ignore() do
-                    for n in 1:N
-                        u = model(g, (u=u, x=x, t=t, θ=θ)) # the pushforward trick!
-                        t = t .+ dt * args.K
-                    end
+                st = updategraph(st, g)
+                ChainRules.@ignore_derivatives for _ in 1:N
+                    u, st = model((u = u, x = x, t = t, θ = θ), ps, st) # the pushforward trick!
+                    t = t .+ dt * args.K
                 end
 
-                gs = gradient(ps) do
-                    output = model(g, (u=u, x=x, t=t, θ=θ))
-                    loss(output, target)
-                end
-                update!(opt, ps, gs)
-            end
-        end
-        if epoch % args.infotime == 0
-            ignore() do
-                @time report(epoch)
+                (l,), back = Zygote.pullback(p -> loss_func((u = u, x = x, t = t, θ = θ), target, model, p, st), ps)
+                gs = back(one(l))[1]
+                ps = Optimisers.update(opt_st, ps, gs)
+                @info "epoch $epoch | loss $l"
             end
         end
 
+        #if epoch % args.infotime == 0
+        #        @time report(epoch)
+        #end
     end
 end

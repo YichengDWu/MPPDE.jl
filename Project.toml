@@ -1,9 +1,9 @@
 [deps]
 ApproxFun = "28f2ccd6-bb30-5033-b560-165f7b14dc2f"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+ChainRules = "082447d4-558c-5d27-93f4-14fc19e9eca2"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DomainSets = "5b8099bc-c8ec-5219-889f-1d9e522a28bf"
-Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
 GraphNeuralNetworks = "cffab07f-9bc2-4db1-8861-388f63bf7694"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
