@@ -62,7 +62,7 @@ function get_data(args)
     graphs = get_graphs(u,θ)
 
     θ = reshape(repeat(θ, g.num_nodes), 1, g.num_nodes, :)
-    train_data, test_data = splitobs((u, x, t, θ, graphs), at = 0.8, shuffle = true)
+    train_data, test_data = splitobs((u, x, t, θ, graphs), at = 0.9, shuffle = true)
 
     train_loader = DataLoader(train_data, batchsize = args.batchsize, shuffle = true)
     test_loader = DataLoader(test_data, batchsize = args.batchsize, shuffle = true)

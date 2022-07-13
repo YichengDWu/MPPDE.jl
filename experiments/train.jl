@@ -6,6 +6,8 @@ using Logging: with_logger
 using CUDA
 using Zygote, ChainRules
 using Plots
+using Statistics: mean
+using ProgressMeter
 
 #CUDA.allowscalar(false)
 
@@ -25,11 +27,11 @@ Base.@kwdef mutable struct Args
     savepath = "log/"    # results path
     K::Int = 25  # timewindow
     N::Int = 2    # number of unrollings
-    infotime::Int = 4
+    infotime::Int = 20
 end
 
 function mse(ŷ, y; agg = mean)
-    agg(abs2.(ŷ .- y))
+    sqrt(agg(abs2.(ŷ .- y)))
 end
 
 function eval_loss(loader, model, ps, st, device, args)
@@ -141,12 +143,13 @@ function train(; kws...)
     # training
     #@time report(0)
     function loss_func(x, y, model, ps, st)
-        return mse(model(x, ps, st)[1], y)
+        return mse(model(x, ps, st)[1], y, agg=sum)
     end
 
     @time for epoch in 1:args.epochs
         @info "Epoch $epoch..."
-        for _ in 1:250  # this in expectation has every possible starting point/sample combination of the training data
+        @showprogress for k in 1:250  # this in expectation has every possible starting point/sample combination of the training data
+            losses = Float32[]
             for (u, x, t, θ, g) in train_loader
                 Nmax =  epoch ≤ args.N ? epoch - 1 : args.N
                 N = rand(0:Nmax)   # numer of pushforward steps for each batch
@@ -165,12 +168,12 @@ function train(; kws...)
                 (l,), back = Zygote.pullback(p -> loss_func((u = u, x = x, t = t, θ = θ), target, model, p, st), ps)
                 gs = back(one(l))[1]
                 st_opt, ps = Optimisers.update(st_opt, ps, gs)
-                @info "epoch $epoch | loss $l"
+                push!(losses, l)
+            end
+
+            if k % args.infotime == 0 || k == 1
+                @info "Training Loss $(mean(losses))"
             end
         end
-
-        #if epoch % args.infotime == 0
-        #        @time report(epoch)
-        #end
     end
 end
