@@ -40,9 +40,9 @@ version = "0.13.3"
 
 [[deps.ApproxFunBase]]
 deps = ["AbstractFFTs", "BandedMatrices", "BlockArrays", "BlockBandedMatrices", "Calculus", "DSP", "DomainSets", "DualNumbers", "FFTW", "FastGaussQuadrature", "FillArrays", "InfiniteArrays", "InfiniteLinearAlgebra", "IntervalSets", "LazyArrays", "LinearAlgebra", "LowRankApprox", "SparseArrays", "SpecialFunctions", "StaticArrays", "Statistics", "Test", "ToeplitzMatrices"]
-git-tree-sha1 = "5b2dc30f3f1e8130407d8fc96b6f506b702ac0ea"
+git-tree-sha1 = "86cffc9137149377b219f108399bb4d693463f47"
 uuid = "fbd15aa5-315a-5a7d-a8a4-24992e37be05"
-version = "0.5.8"
+version = "0.5.9"
 
 [[deps.ApproxFunFourier]]
 deps = ["AbstractFFTs", "ApproxFunBase", "DomainSets", "FFTW", "FastTransforms", "InfiniteArrays", "IntervalSets", "LinearAlgebra", "Reexport"]
@@ -1311,10 +1311,10 @@ version = "0.4.11"
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 
 [[deps.NeuralGraphPDE]]
-deps = ["DifferentialEquations", "GraphNeuralNetworks", "Lux", "NNlib", "NNlibCUDA", "Statistics"]
-git-tree-sha1 = "ceb591322e634c93120764067be6de2432ca3231"
+deps = ["CUDA", "DifferentialEquations", "GraphNeuralNetworks", "Lux", "NNlib", "NNlibCUDA", "Statistics"]
+git-tree-sha1 = "46b23e1331b97648edaafa409412d6e91f5f7a5f"
 uuid = "dc0c328b-2f26-4c4e-a741-3d78bb01adf9"
-version = "0.1.6"
+version = "0.1.7"
 
 [[deps.NonlinearSolve]]
 deps = ["ArrayInterfaceCore", "FiniteDiff", "ForwardDiff", "IterativeSolvers", "LinearAlgebra", "RecursiveArrayTools", "RecursiveFactorization", "Reexport", "SciMLBase", "Setfield", "StaticArrays", "UnPack"]
