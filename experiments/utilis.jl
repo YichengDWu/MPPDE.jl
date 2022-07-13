@@ -3,11 +3,14 @@ using GraphNeuralNetworks
 using Parameters
 using JLD2
 
-function get_data(args)
+function get_dataloader(args)
     e = args.experiment
     !isfile("datasets/$e.jld2") && generate_save_data(e) #TODO: add wave equation in the future
 
     @unpack domain, u, dx, dt, θ = load("datasets/$e.jld2")
+
+    u = u[:,1:2:end,:] # downsample
+    dx = dx * 2
 
     if e == :E2
         θ = θ .* 5
@@ -65,7 +68,7 @@ function get_data(args)
     train_data, test_data = splitobs((u, x, t, θ, graphs), at = 0.9, shuffle = true)
 
     train_loader = DataLoader(train_data, batchsize = args.batchsize, shuffle = true, parallel = true)
-    test_loader = DataLoader(test_data, batchsize = args.batchsize, shuffle = true, parallel = true)
+    test_loader = DataLoader(test_data, batchsize = args.batchsize, shuffle = false, parallel = true)
 
     dt = eltype(u)(dt)
     return train_loader, test_loader, dt

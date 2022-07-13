@@ -106,8 +106,7 @@ function train(; kws...)
 
 
     # load data
-    train_loader, test_loader, dt = get_data(args)
-    @info "Dataset $(args.experiment): $(numobs(train_loader)) train and $(numobs(test_loader)) test examples"
+    train_loader, test_loader, dt = get_dataloader(args)
 
     # model
     model = MPSolver(dt = dt, timewindow=args.K, neqvar=neqvar)
@@ -148,12 +147,13 @@ function train(; kws...)
 
     @time for epoch in 1:args.epochs
         @info "Epoch $epoch..."
-        @showprogress for k in 1:250  # this in expectation has every possible starting point/sample combination of the training data
+        p = Progress(250)
+        for k in 1:250  # this in expectation has every possible starting point/sample combination of the training data
             losses = Float32[]
             for (u, x, t, θ, g) in train_loader
                 Nmax =  epoch ≤ args.N ? epoch - 1 : args.N
                 N = rand(0:Nmax)   # numer of pushforward steps for each batch
-                u, t, g, target = batched_sample(u, t, g, args.K, N) |> device
+                @time u, t, g, target = batched_sample(u, t, g, args.K, N) |> device
 
                 x = reshape(x, size(x,1), size(x,2) * size(x,3)) |> device
                 θ = reshape(θ, size(θ,1), size(θ,2) * size(θ,3)) |> device
@@ -161,15 +161,17 @@ function train(; kws...)
                 st = updategraph(st, g)
 
                 ChainRules.@ignore_derivatives for _ in 1:N
-                    u, st = model((u = u, x = x, t = t, θ = θ), ps, st) # the pushforward trick!
+                    @time u, st = model((u = u, x = x, t = t, θ = θ), ps, st) # the pushforward trick!
                     t = t .+ dt * args.K
                 end
 
-                (l,), back = Zygote.pullback(p -> loss_func((u = u, x = x, t = t, θ = θ), target, model, p, st), ps)
+                @time (l,), back = Zygote.pullback(p -> loss_func((u = u, x = x, t = t, θ = θ), target, model, p, st), ps)
                 gs = back(one(l))[1]
                 st_opt, ps = Optimisers.update(st_opt, ps, gs)
                 push!(losses, l)
             end
+
+            next!(p)
 
             if k % args.infotime == 0 || k == 1
                 @info "Training Loss $(mean(losses))"
