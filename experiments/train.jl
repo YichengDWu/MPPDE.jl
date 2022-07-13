@@ -7,7 +7,7 @@ using CUDA
 using Zygote, ChainRules
 using Plots
 
-CUDA.allowscalar(false)
+#CUDA.allowscalar(false)
 
 include("./models_gnn.jl")
 include("../generate/generate_data_CE.jl")
@@ -19,7 +19,7 @@ Base.@kwdef mutable struct Args
     experiment::Symbol
     batchsize::Int = 16      # batch size
     use_cuda::Bool = true      # if true use cuda (if available)
-    neighbors::Int = 6
+    neighbors::Int = 3      # number of neighbors for the knn graph
     epochs::Int = 20          # number of epochs
     tblogger = true      # log training with tensorboard
     savepath = "log/"    # results path
