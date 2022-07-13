@@ -70,7 +70,7 @@ function MPSolver(;
     Δt = cumsum(ones(typeof(dt), timewindow) .* dt)
     MPSolver(
         Encoder(timewindow, neqvar, dhidden),
-        Processor(dhidden => dhidden, timewindow, neqvar, dhidden, nlayer),
+        Processor(dhidden => dhidden, timewindow, neqvar + 1, dhidden, nlayer), # variables = eq_variables + time
         Decoder(timewindow),
         Δt
     )

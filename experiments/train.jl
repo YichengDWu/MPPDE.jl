@@ -151,6 +151,7 @@ function train(; kws...)
                 Nmax =  epoch ≤ args.N ? epoch - 1 : args.N
                 N = rand(0:Nmax)   # numer of pushforward steps for each batch
                 u, t, g, target = batched_sample(u, t, g, args.K, N) |> device
+
                 x = reshape(x, size(x,1), size(x,2) * size(x,3)) |> device
                 θ = reshape(θ, size(θ,1), size(θ,2) * size(θ,3)) |> device
 

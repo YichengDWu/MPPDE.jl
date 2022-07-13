@@ -78,7 +78,7 @@ function single_sample(u::AbstractMatrix, t::AbstractMatrix, g::GNNGraph,k::Int,
     @views target = u[k+N*K:k+(N+1)*K-1,:]
 
     @views new_du = g.edata.du[k-K:k-1,:]
-    new_g = GNNGraph(g, edata = (du = new_du, dx = g.edata.dx), gdata = (;θ = g.gdata.θ))
+    new_g = GNNGraph(g, edata = (du = new_du, dx = g.edata.dx), gdata = (;θ = g.gdata.θ, t = new_t[:,[1]]))
 
     return new_u, new_t, new_g, target
 end
