@@ -26,7 +26,7 @@ Base.@kwdef mutable struct Args
     tblogger = true      # log training with tensorboard
     savepath = "log/"    # results path
     K::Int = 25  # timewindow
-    N::Int = 2    # number of unrollings
+    N::Int = 1    # number of unrollings
     infotime::Int = 20
 end
 
@@ -118,11 +118,11 @@ function train(; kws...)
     st_opt = Optimisers.setup(opt, ps)
 
     # logging
-    if args.tblogger
-        tblogger = TBLogger(args.savepath, tb_overwrite)
-        set_step_increment!(tblogger, 0) # 0 auto increment since we manually set_step!
-        @info "TensorBoard logging at \"$(args.savepath)\""
-    end
+    #if args.tblogger
+    #    tblogger = TBLogger(args.savepath, tb_overwrite)
+    #    set_step_increment!(tblogger, 0) # 0 auto increment since we manually set_step!
+    #    @info "TensorBoard logging at \"$(args.savepath)\""
+    #end
 
     function report(epoch)
         train_loss = eval_loss(train_loader, model, device, args)
@@ -153,7 +153,7 @@ function train(; kws...)
             for (u, x, t, θ, g) in train_loader
                 Nmax =  epoch ≤ args.N ? epoch - 1 : args.N
                 N = rand(0:Nmax)   # numer of pushforward steps for each batch
-                @time u, t, g, target = batched_sample(u, t, g, args.K, N) |> device
+                u, t, g, target = batched_sample(u, t, g, args.K, N) |> device
 
                 x = reshape(x, size(x,1), size(x,2) * size(x,3)) |> device
                 θ = reshape(θ, size(θ,1), size(θ,2) * size(θ,3)) |> device
@@ -161,11 +161,11 @@ function train(; kws...)
                 st = updategraph(st, g)
 
                 ChainRules.@ignore_derivatives for _ in 1:N
-                    @time u, st = model((u = u, x = x, t = t, θ = θ), ps, st) # the pushforward trick!
+                    u, st = model((u = u, x = x, t = t, θ = θ), ps, st) # the pushforward trick!
                     t = t .+ dt * args.K
                 end
 
-                @time (l,), back = Zygote.pullback(p -> loss_func((u = u, x = x, t = t, θ = θ), target, model, p, st), ps)
+                (l,), back = Zygote.pullback(p -> loss_func((u = u, x = x, t = t, θ = θ), target, model, p, st), ps)
                 gs = back(one(l))[1]
                 st_opt, ps = Optimisers.update(st_opt, ps, gs)
                 push!(losses, l)
