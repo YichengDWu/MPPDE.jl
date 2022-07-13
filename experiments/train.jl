@@ -148,17 +148,19 @@ function train(; kws...)
     @time for epoch in 1:args.epochs
         @info "Epoch $epoch..."
         p = Progress(250)
-        for k in 1:250  # this in expectation has every possible starting point/sample combination of the training data
+        Nmax =  epoch ≤ args.N ? epoch - 1 : args.N
+        for m in 1:250  # this in expectation has every possible starting point/sample combination of the training data
             losses = Float32[]
-            for (u, x, t, θ, g) in train_loader
-                Nmax =  epoch ≤ args.N ? epoch - 1 : args.N
+            @time for (u, x, t, θ, g) in train_loader
                 N = rand(0:Nmax)   # numer of pushforward steps for each batch
                 u, t, g, target = batched_sample(u, t, g, args.K, N) |> device
 
-                x = reshape(x, size(x,1), size(x,2) * size(x,3)) |> device
-                θ = reshape(θ, size(θ,1), size(θ,2) * size(θ,3)) |> device
+                #x = reshape(x, size(x,1), size(x,2) * size(x,3)) |> device #TODO: support batched input
+                #θ = reshape(θ, size(θ,1), size(θ,2) * size(θ,3)) |> device
+                x = x |> device
+                θ = θ |> device
 
-                st = updategraph(st, g)
+                @time st = updategraph(st, g)
 
                 ChainRules.@ignore_derivatives for _ in 1:N
                     u, st = model((u = u, x = x, t = t, θ = θ), ps, st) # the pushforward trick!
@@ -173,8 +175,9 @@ function train(; kws...)
 
             next!(p)
 
-            if k % args.infotime == 0 || k == 1
-                @info "Training Loss $(mean(losses))"
+            @info "$m"
+            if m % args.infotime == 0 || m == 1
+                @info "Training Loss $(mean(losses)/args.batchsize)"
             end
         end
     end
