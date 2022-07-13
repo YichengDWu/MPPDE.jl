@@ -6,9 +6,16 @@ Note that training E1 would throw an error, it will be fixed from upstream latte
 
 Loss is not decreasing much, I will debug it latter. Or it will be fixed with Lux
 
+## Start Julia
+Lets start Julia with 4 threads:
+
+```julia
+$ julia --threads 4
+```
 ## Set up environment
 `cd` to the project directory and call
-```
+
+```julia
 pkg> activate .
 pkg> instantiate
 ```
