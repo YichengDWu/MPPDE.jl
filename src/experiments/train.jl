@@ -134,7 +134,7 @@ function train(; kws...)
         Nmax =  epoch ≤ args.N ? epoch - 1 : args.N
         for m in 1:250  # this in expectation has every possible starting point/sample combination of the training data
             losses = Float32[]
-            @time for (u, x, t, θ, g) in train_loader
+            for (u, x, t, θ, g) in train_loader
                 N = rand(0:Nmax)   # numer of pushforward steps for each batch
                 u, t, g, y = batched_sample(u, t, g, args.K, N)
 
