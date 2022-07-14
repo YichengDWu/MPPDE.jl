@@ -10,7 +10,7 @@ function get_dataloader(args)
     if e == :E2
         θ = θ .* 5
     elseif e == :E3
-        θ = θ./[3,eltype(θ)(0.4),1]
+        θ = θ./[3,0.4f0,1]
     end
 
     #u_train, u_test = splitobs(u, at = 0.8, shuffle = true)
@@ -59,7 +59,7 @@ function get_dataloader(args)
 
     graphs = get_graphs(u,θ)
 
-    θ = reshape(repeat(θ, g.num_nodes), 1, g.num_nodes, :)
+    θ = reshape(repeat(θ, g.num_nodes), size(θ, 1), g.num_nodes, size(u,3))
     train_data, test_data = splitobs((u, x, t, θ, graphs), at = 0.9, shuffle = true)
 
     train_loader = DataLoader(train_data, batchsize = args.batchsize, shuffle = true, parallel = true)
@@ -76,7 +76,9 @@ function single_sample(u::AbstractMatrix, t::AbstractMatrix, g::GNNGraph,k::Int,
     @views target = u[k+N*K:k+(N+1)*K-1,:]
 
     @views new_du = g.edata.du[k-K:k-1,:]
-    new_g = GNNGraph(g, edata = (du = new_du, dx = g.edata.dx), gdata = (θ = g.gdata.θ, t = new_t[:,[1]]))
+
+    gdata = merge(g.gdata, (;t = new_t[:,[1]]))
+    new_g = GNNGraph(g, edata = (du = new_du, dx = g.edata.dx), gdata = gdata)
 
     return new_u, new_t, new_g, target
 end

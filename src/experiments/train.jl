@@ -156,7 +156,6 @@ function train(; kws...)
 
             next!(p)
 
-            @info "$m"
             if m % args.infotime == 0 || m == 1
                 @info "Training Loss $(mean(losses)/args.batchsize)"
             end
