@@ -1,8 +1,3 @@
-using MLUtils
-using GraphNeuralNetworks
-using Parameters
-using JLD2
-
 function get_dataloader(args)
     e = args.experiment
     !isfile("datasets/$e.jld2") && generate_save_data(e) #TODO: add wave equation in the future
@@ -81,7 +76,7 @@ function single_sample(u::AbstractMatrix, t::AbstractMatrix, g::GNNGraph,k::Int,
     @views target = u[k+N*K:k+(N+1)*K-1,:]
 
     @views new_du = g.edata.du[k-K:k-1,:]
-    new_g = GNNGraph(g, edata = (du = new_du, dx = g.edata.dx), gdata = (;θ = g.gdata.θ, t = new_t[:,[1]]))
+    new_g = GNNGraph(g, edata = (du = new_du, dx = g.edata.dx), gdata = (θ = g.gdata.θ, t = new_t[:,[1]]))
 
     return new_u, new_t, new_g, target
 end

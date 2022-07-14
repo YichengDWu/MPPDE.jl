@@ -1,21 +1,4 @@
-using Lux, Random
-using GraphNeuralNetworks
-using Optimisers
-using TensorBoardLogger
-using Logging: with_logger
-using CUDA
-using Zygote, ChainRules
-using Plots
-using Statistics: mean
-using ProgressMeter
-
 #CUDA.allowscalar(false)
-
-include("./models_gnn.jl")
-include("../generate/generate_data_CE.jl")
-include("utilis.jl")
-
-
 Base.@kwdef mutable struct Args
     η = 1e-4             # learning rate
     experiment::Symbol

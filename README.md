@@ -18,6 +18,7 @@ $ julia --threads auto
 ```julia
 pkg> activate .
 pkg> instantiate
+using MPPDE
 ```
 
 ## Produce datasets for tasks E1, E2, E3

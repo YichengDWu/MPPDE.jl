@@ -1,5 +1,3 @@
-using Lux, NNlib
-using NeuralGraphPDE
 #import Flux: unsqueeze
 
 function Encoder(timewindow::Int, neqvar::Int, dhidden::Int = 128, act = swish)
@@ -49,6 +47,7 @@ function Decoder(timewindow::Int, act = swish)
         Chain(Conv((12,), 1 => 8, act; stride = 2), Conv((10,), 8 => 1, act))
     end
 end
+
 struct MPSolver{E, P, D, T<: AbstractFloat} <:
         Lux.AbstractExplicitContainerLayer{(:encoder, :processor, :decoder)}
     encoder::E
@@ -84,6 +83,7 @@ function (l::MPSolver)(ndata::NamedTuple, ps::NamedTuple, st::NamedTuple)
     """
     input = reduce(vcat, values(ndata)) #TODO: add norm
     f, st_encoder = l.encoder(input, ps.encoder, st.encoder)
+    @show size(f)
     h, st_processor = l.processor(f, ps.processor, st.processor)
     d, st_decoder = l.decoder(unsqueeze(h,2), ps.decoder, st.decoder)
     d = dropdims(d; dims = 2)
