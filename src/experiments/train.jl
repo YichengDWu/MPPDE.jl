@@ -136,21 +136,19 @@ function train(; kws...)
             losses = Float32[]
             @time for (u, x, t, θ, g) in train_loader
                 N = rand(0:Nmax)   # numer of pushforward steps for each batch
-                u, t, g, target = batched_sample(u, t, g, args.K, N) |> device
+                u, t, g, y = batched_sample(u, t, g, args.K, N)
 
-                #x = reshape(x, size(x,1), size(x,2) * size(x,3)) |> device #TODO: support batched input
-                #θ = reshape(θ, size(θ,1), size(θ,2) * size(θ,3)) |> device
-                x = x |> device
-                θ = θ |> device
+                u, x, t, θ, y = (u, x, t, θ, y) .|> _flatten
+                u, x, t, θ, y, g = (u, x , t, θ, y, g) .|> device
 
-                @time st = updategraph(st, g)
+                st = updategraph(st, g)
 
                 ChainRules.@ignore_derivatives for _ in 1:N
                     u, st = model((u = u, x = x, t = t, θ = θ), ps, st) # the pushforward trick!
                     t = t .+ dt * args.K
                 end
 
-                (l,), back = Zygote.pullback(p -> loss_func((u = u, x = x, t = t, θ = θ), target, model, p, st), ps)
+                (l,), back = Zygote.pullback(p -> loss_func((u = u, x = x, t = t, θ = θ), y, model, p, st), ps)
                 gs = back(one(l))[1]
                 st_opt, ps = Optimisers.update(st_opt, ps, gs)
                 push!(losses, l)
