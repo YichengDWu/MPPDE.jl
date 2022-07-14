@@ -83,7 +83,6 @@ function (l::MPSolver)(ndata::NamedTuple, ps::NamedTuple, st::NamedTuple)
     """
     input = reduce(vcat, values(ndata)) #TODO: add norm
     f, st_encoder = l.encoder(input, ps.encoder, st.encoder)
-    @show size(f)
     h, st_processor = l.processor(f, ps.processor, st.processor)
     d, st_decoder = l.decoder(unsqueeze(h,2), ps.decoder, st.decoder)
     d = dropdims(d; dims = 2)

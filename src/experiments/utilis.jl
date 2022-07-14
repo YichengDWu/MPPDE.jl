@@ -102,3 +102,8 @@ function batched_sample(u::AbstractArray, t::AbstractArray, graphs::Vector{<:GNN
     end
     return sampled_u, sampled_t, batch(sampled_graphs), sampled_targets
 end
+
+@inline function _flatten(x::AbstractArray)
+    s = size(x)
+    reshape(x, s[1:(end-2)]..., s[end-1]*s[end])
+end
