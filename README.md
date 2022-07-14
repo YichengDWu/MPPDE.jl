@@ -2,10 +2,6 @@
 
 This is an implementation of the [message passing solver](https://github.com/brandstetter-johannes/MP-Neural-PDE-Solvers) in Julia
 
-Note that training E1 would throw an error, it will be fixed from upstream latter
-
-Loss is not decreasing much, I will debug it latter. Or it will be fixed with Lux
-
 ## Start Julia
 Lets start Julia with mutiple threads:
 
