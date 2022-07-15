@@ -12,7 +12,6 @@ using Statistics: mean
 using ProgressMeter
 using MLUtils
 using GraphNeuralNetworks
-using Parameters
 using JLD2
 using Lux, NNlib
 using NeuralGraphPDE
