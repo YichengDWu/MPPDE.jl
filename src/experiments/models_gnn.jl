@@ -86,7 +86,7 @@ function (l::MPSolver)(ndata::NamedTuple, ps::NamedTuple, st::NamedTuple)
     h, st_processor = l.processor(f, ps.processor, st.processor)
     d, st_decoder = l.decoder(unsqueeze(h,2), ps.decoder, st.decoder)
     d = dropdims(d; dims = 2)
-    u = ndata.u[end:end, :] .+ Lux.gpu(l.Δt) .* d
+    u = ndata.u[[end], :] .+ Lux.gpu(l.Δt) .* d
     st = merge(st,(encoder = st_encoder, processor = st_processor, decoder = st_decoder))
     return u, st
 end
