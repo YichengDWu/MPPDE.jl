@@ -59,12 +59,11 @@ end
 """
 input: Temporal × (Spatial × N)
 """
-function MPSolver(timewindow::Int = 25,
+function MPSolver(;dt::AbstractFloat,
+                  timewindow::Int = 25,
                   dhidden::Int = 128,
                   nlayer::Int = 6,
-                  neqvar::Int = 0;
-                  dt::AbstractFloat
-)
+                  neqvar::Int = 0)
     Δt = cumsum(ones(typeof(dt), timewindow) .* dt)
     MPSolver(
         Encoder(timewindow, neqvar, dhidden),

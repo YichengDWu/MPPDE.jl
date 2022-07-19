@@ -63,8 +63,6 @@ function draw_prediction(g::GNNGraph,model,args)
     return p
 end
 
-
-
 function train(; kws...)
     args = Args(; kws...)
     use_cuda = args.use_cuda && CUDA.functional()
