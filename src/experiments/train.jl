@@ -22,7 +22,7 @@ function eval_loss(loader, model, ps, st, device, args)
     K = args.K
     for g in loader
         g = g |> device
-        @unpack u, x, t, θ = g.ndata
+        (;u, x, t, θ) = g.ndata
 
         T = size(t, 1)
         steps = T ÷ K - 1
@@ -46,7 +46,7 @@ end
 
 function draw_prediction(g::GNNGraph,model,args)
     g = g |> gpu #TODO:device
-    @unpack u, x, t, θ = g.ndata
+    (;u, x, t, θ) = g.ndata
     T = size(t, 1)
     K = args.K
     steps = T ÷ K - 1

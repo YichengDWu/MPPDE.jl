@@ -1,6 +1,6 @@
 # MP PDE Solver in Julia
 
-This is an implementation of the [message passing solver](https://github.com/brandstetter-johannes/MP-Neural-PDE-Solvers) in Julia
+This is an implementation of the ["Message Passing Neural PDE Solvers"](https://github.com/brandstetter-johannes/MP-Neural-PDE-Solvers) in Julia
 
 ## Start Julia
 Lets start Julia with mutiple threads:
