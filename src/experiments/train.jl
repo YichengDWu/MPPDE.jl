@@ -1,4 +1,3 @@
-#CUDA.allowscalar(false)
 Base.@kwdef mutable struct Args
     η = 1e-4             # learning rate
     experiment::Symbol
@@ -62,6 +61,8 @@ function draw_prediction(g::GNNGraph,model,args)
     p = plot(x,pred,title = "Prediction")
     return p
 end
+
+#CUDA.allowscalar(false)
 
 function train(; kws...)
     args = Args(; kws...)
