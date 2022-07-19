@@ -95,7 +95,7 @@ function batched_sample(u::AbstractArray, t::AbstractArray, graphs::Vector{<:GNN
     sampled_graphs = similar(graphs)
     sampled_targets = similar(u, K, Nx, nsamples)
 
-    for i in 1:nsamples
+    Threads.@threads for i in 1:nsamples
         u_, t_, g_, target_ = single_sample(u[:,:,i], t[:,:,i], graphs[i], rand(range), K, N)
         sampled_u[:, :, i] .= u_
         sampled_t[:, :, i] .= t_
