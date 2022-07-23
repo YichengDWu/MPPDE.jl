@@ -1,5 +1,3 @@
-#import Flux: unsqueeze
-
 function Encoder(timewindow::Int, neqvar::Int, dhidden::Int = 128, act = swish)
     return Chain(
         Dense(timewindow + 2 + neqvar, dhidden, act),  #din=timewindow + 2 + n_eqvar
