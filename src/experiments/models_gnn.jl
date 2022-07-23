@@ -31,7 +31,7 @@ function Processor(
     nlayer::Int = 6,
 )
     @assert ch.first == ch.second # current limitation
-    Chain([SkipConnection(ProcessorLayer(ch, timewindow, neqvar, dhidden),+) for i = 1:nlayer])
+    Chain([SkipConnection(ProcessorLayer(ch, timewindow, neqvar, dhidden), +) for i = 1:nlayer])
 end
 
 
