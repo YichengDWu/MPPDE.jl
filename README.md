@@ -4,6 +4,8 @@ This is an implementation of the ["Message Passing Neural PDE Solvers"](https://
 
 **Warning**: rrule of `repeat` is causing scalar indexing.
 
+**Comment**: I don't think the so-called message passing PDE solver is a good model. I wouldn't use it in practice personally.
+
 ## Start Julia
 Lets start Julia with mutiple threads:
 
