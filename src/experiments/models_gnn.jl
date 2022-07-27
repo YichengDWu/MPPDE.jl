@@ -71,12 +71,12 @@ function MPSolver(;dt::AbstractFloat,
     )
 end
 
+"""
+Push u[k-K:k] to u[k:k+K]
+input:
+    ndata: (u,x,t,θ)   # u is already sample to be (K, Nx * batch_size)
+"""
 function (l::MPSolver)(ndata::NamedTuple, ps::NamedTuple, st::NamedTuple)
-    """
-    Push u[k-K:k] to u[k:k+K]
-    input:
-        ndata: (u,x,t,θ)   # u is already sample to be (K, Nx * batch_size)
-    """
     input = reduce(vcat, values(ndata)) #TODO: add norm
     f, st_encoder = l.encoder(input, ps.encoder, st.encoder)
     h, st_processor = l.processor(f, ps.processor, st.processor)
