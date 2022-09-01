@@ -2,9 +2,7 @@
 
 This is an implementation of the ["Message Passing Neural PDE Solvers"](https://github.com/brandstetter-johannes/MP-Neural-PDE-Solvers) in Julia
 
-**Warning**: rrule of `repeat` is causing scalar indexing.
-
-**Comment**: I don't think the so-called message passing PDE solver is a good model. I wouldn't use it in practice personally.
+**Warning**: rrule of `repeat` is causing scalar indexing. Must wait for upstream fixes.
 
 ## Start Julia
 Lets start Julia with mutiple threads:
