@@ -2,7 +2,7 @@ function get_dataloader(args)
     e = args.experiment
     !isfile("datasets/$e.jld2") && generate_save_data(e) #TODO: add wave equation in the future
 
-    (;domain, u, dx, dt, θ) = load("datasets/$e.jld2")
+    (domain, u, dx, dt, θ) = values(load("datasets/$e.jld2"))
 
     u = u[:,1:2:end,:] # downsample
     dx = dx * 2

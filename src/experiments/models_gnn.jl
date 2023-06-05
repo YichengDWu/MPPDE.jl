@@ -51,7 +51,7 @@ struct MPSolver{E, P, D, T<: AbstractFloat} <:
     encoder::E
     processor::P
     decoder::D
-    Δt::Vector{T}
+    Δt::AbstractArray{T}
 end
 
 """
