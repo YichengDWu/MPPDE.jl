@@ -96,7 +96,7 @@ function generate_data(
                 rand(Uniform(0, 2π), 5),
             ),
         )
-        u[:, :, i] .= Array{T}(solve(newprob, Tsit5(), saveat = dt))'
+        u[:, :, i] .= Array{T}(solve(newprob, Tsit5(), saveat = dt).original_sol)'
     end
     return u, dx, dt, θ, domain
 end
