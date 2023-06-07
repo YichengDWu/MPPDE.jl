@@ -66,9 +66,7 @@ function generate_data(
     nx::Int = 200,
     nt::Int = 250,
 ) where {T<:AbstractFloat}
-    """where {T<:AbstractFloat}
-    ranges: ranges for α β γ
-    """
+    # ranges: ranges for α β γ
     prob = build_combo_eq(tmin = tmin, tmax = tmax, xmin = xmin, xmax = xmax, nx = nx)
 
     domain = [xmin xmax; tmin tmax]
