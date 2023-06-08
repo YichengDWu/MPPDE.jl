@@ -26,6 +26,7 @@ include("./experiments/utilis.jl")
 include("./experiments/models_gnn.jl")
 include("./generate/generate_data_CE.jl")
 
-export train, generate_data_CE, MPSolver
+export train, generate_data_CE, MPSolver, generate_save_data, get_dataloader, MPSolver,
+        batched_sample
 
 end

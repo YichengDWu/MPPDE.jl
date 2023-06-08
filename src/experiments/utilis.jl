@@ -34,10 +34,10 @@ function get_dataloader(args)
 
     function get_graphs(u,θ)
         if e == :E1
-            gg = GNNGraph(g, edata = (du = collect(@views u[:,:,1][:,src]- u[:,:,1][:,target]),
+            gg = GNNGraph(g, edata = (du = collect(@views(u[:,:,1][:,src]- u[:,:,1][:,target])),
                          dx = copy(dx)))
         else
-            gg = GNNGraph(g, edata = (du = collect(@views u[:,:,1][:,src]- u[:,:,1][:,target]),
+            gg = GNNGraph(g, edata = (du = collect(@views(u[:,:,1][:,src]- u[:,:,1][:,target])),
                                       dx = copy(dx)),
                              gdata = (;θ = collect(θ[:,[1]])))
         end
@@ -45,10 +45,10 @@ function get_dataloader(args)
 
         for i in 2:size(u, 3)
             if e == :E1
-                gg = GNNGraph(g, edata = (du = collect(@views u[:,:,i][:,src]- u[:,:,i][:,target]),
+                gg = GNNGraph(g, edata = (du = collect(@views(u[:,:,i][:,src]- u[:,:,i][:,target])),
                                           dx = copy(dx)))
             else
-                gg = GNNGraph(g, edata = (du = collect(@views u[:,:,i][:,src]- u[:,:,i][:,target]),
+                gg = GNNGraph(g, edata = (du = collect(@views(u[:,:,i][:,src]- u[:,:,i][:,target])),
                                           dx = copy(dx)),
                                  gdata = (;θ = collect(θ[:,[i]])))
             end
@@ -62,8 +62,8 @@ function get_dataloader(args)
     θ = reshape(repeat(θ, g.num_nodes), size(θ, 1), g.num_nodes, size(u,3))
     train_data, test_data = splitobs((u, x, t, θ, graphs), at = 0.9, shuffle = true)
 
-    train_loader = DataLoader(train_data, batchsize = args.batchsize, shuffle = true, parallel = true)
-    test_loader = DataLoader(test_data, batchsize = args.batchsize, shuffle = false, parallel = true)
+    train_loader = DataLoader(train_data, batchsize = args.batchsize, shuffle = true)
+    test_loader = DataLoader(test_data, batchsize = args.batchsize, shuffle = false)
 
     dt = eltype(u)(dt)
     return train_loader, test_loader, dt
