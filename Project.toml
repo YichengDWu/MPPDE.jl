@@ -2,6 +2,9 @@ name = "MPPDE"
 uuid = "6851f441-e996-4cda-aec0-1fc9a81f1fa4"
 version = "1.0.0"
 
+[compat]
+"NeuralGraphPDE" = "0.2"
+
 [deps]
 ApproxFun = "28f2ccd6-bb30-5033-b560-165f7b14dc2f"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
