@@ -91,7 +91,7 @@ function train(; kws...)
     train_loader, test_loader, dt = get_dataloader(args)
 
     # model
-    model = MPSolver(dt = dt, timewindow=args.K, neqvar=neqvar)
+    model = MPSolver(dt = dt, timewindow=args.K, neqvar=neqvar, device=device)
 
     display(model)
     ps, st = Lux.setup(Random.default_rng(), model) |> device
@@ -138,7 +138,7 @@ function train(; kws...)
                 u, t, g, y = batched_sample(u, t, g, args.K, N)
 
                 u, x, t, θ, y = (u, x, t, θ, y) .|> _flatten
-                u, x, t, θ, y, g = (u, x , t, θ, y, g) .|> device
+                u, x, t, θ, y, g = (u, x, t, θ, y, g) .|> device
 
                 st = updategraph(st, g)
 

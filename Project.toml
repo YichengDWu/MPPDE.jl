@@ -1,4 +1,6 @@
 name = "MPPDE"
+uuid = "6851f441-e996-4cda-aec0-1fc9a81f1fa4"
+version = "1.0.0"
 
 [deps]
 ApproxFun = "28f2ccd6-bb30-5033-b560-165f7b14dc2f"

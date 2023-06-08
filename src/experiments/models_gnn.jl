@@ -61,13 +61,14 @@ function MPSolver(;dt::AbstractFloat,
                   timewindow::Int = 25,
                   dhidden::Int = 128,
                   nlayer::Int = 6,
-                  neqvar::Int = 0)
+                  neqvar::Int = 0,
+                  device = cpu)
     Δt = cumsum(ones(typeof(dt), timewindow) .* dt)
     MPSolver(
         Encoder(timewindow, neqvar, dhidden),
         Processor(dhidden => dhidden, timewindow, neqvar + 1, dhidden, nlayer), # variables = eq_variables + time
         Decoder(timewindow),
-        Lux.gpu(Δt)
+        device(Δt)
     )
 end
 
