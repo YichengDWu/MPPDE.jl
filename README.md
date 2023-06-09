@@ -6,6 +6,9 @@ Note that training E1 would throw an error, it will be fixed from upstream latte
 
 Loss is not decreasing much, I will debug it latter. Or it will be fixed with Lux
 
+There are two major branches `Lux` and `Flux` corresponding to two different implementations of the neural networks.
+Choose the one you prefer.
+
 ## Set up environment
 `cd` to the project directory and call
 ```
